@@ -6,7 +6,7 @@
 <title>Pneumo Patrol</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#05060f}
@@ -264,6 +264,47 @@ html,body{background:#05060f}
 }
 @keyframes pp-glow{0%{opacity:0;transform:scale(.6)}40%{opacity:1;transform:scale(1.1)}100%{opacity:0;transform:scale(1.4)}}
 
+/* ---------- intro crawl ---------- */
+#pp-root .pp-intro{
+  position:fixed;inset:0;z-index:60;display:none;overflow:hidden;background-color:#05060f;
+  background-image:
+    radial-gradient(1px 1px at 12% 18%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 37% 72%,#cfe 50%,transparent 51%),
+    radial-gradient(2px 2px at 64% 33%,#36f3ff 50%,transparent 51%),radial-gradient(1px 1px at 82% 81%,#fff 50%,transparent 51%),
+    radial-gradient(1px 1px at 51% 9%,#fff 50%,transparent 51%),radial-gradient(2px 2px at 23% 55%,#fff 50%,transparent 51%),
+    radial-gradient(1px 1px at 91% 44%,#dde 50%,transparent 51%),radial-gradient(1px 1px at 5% 92%,#fff 50%,transparent 51%),
+    radial-gradient(ellipse at 50% 120%,rgba(54,243,255,.16),transparent 60%);
+  background-size:230px 230px,230px 230px,230px 230px,230px 230px,170px 170px,170px 170px,170px 170px,170px 170px,100% 100%;
+  animation:pp-drift 40s linear infinite;
+}
+@keyframes pp-drift{to{background-position:0 230px,0 230px,0 230px,0 230px,0 340px,0 340px,0 340px,0 340px,0 0}}
+@media (prefers-reduced-motion:reduce){#pp-root .pp-intro{animation:none}}
+#pp-root .pp-intro.on{display:block}
+#pp-root .pp-intro-head{
+  position:absolute;left:0;right:0;top:9%;text-align:center;font-family:var(--pix);font-size:clamp(9px,1.6vw,12px);
+  color:var(--cyan);line-height:2;text-shadow:0 0 8px var(--cyan);padding:0 16px;opacity:0;transition:opacity .8s;
+}
+#pp-root .pp-intro-head.on{opacity:1}
+#pp-root .pp-intro-head b{display:block;color:var(--green);font-weight:400;text-shadow:0 0 8px var(--green)}
+#pp-root .pp-intro-stage{
+  position:absolute;left:0;right:0;top:22%;bottom:0;perspective:420px;overflow:hidden;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 30%,#000 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 30%,#000 100%);
+}
+#pp-root .pp-crawl{
+  position:absolute;left:50%;top:0;width:min(620px,74%);margin-left:calc(min(620px,74%) / -2);
+  transform-origin:50% 0;font-family:var(--pix);color:var(--yellow);text-align:center;
+  font-size:clamp(10px,2vw,17px);line-height:2.1;text-shadow:0 0 10px rgba(255,228,92,.6);will-change:transform;
+}
+#pp-root .pp-crawl p{margin-bottom:1.6em}
+#pp-root .pp-crawl .big{font-size:1.5em;color:var(--cyan);text-shadow:0 0 12px var(--cyan),3px 3px 0 var(--mag)}
+#pp-root .pp-crawl .you{font-size:1.4em;color:var(--green);text-shadow:0 0 12px var(--green)}
+#pp-root .pp-crawl em{font-style:normal;color:var(--red)}
+#pp-root .pp-intro-skip{position:absolute;right:16px;bottom:16px;z-index:2;display:flex;gap:10px;align-items:center}
+#pp-root .pp-intro-skip span{font-family:var(--pix);font-size:7px;color:var(--dim)}
+#pp-root .pp-intro-go{position:absolute;left:50%;bottom:16%;transform:translateX(-50%);z-index:2;display:none}
+#pp-root .pp-intro-go.on{display:block}
+@media (max-width:700px){#pp-root .pp-crawl{width:60%;margin-left:-30%}}
+#pp-root .pp-intro.static .pp-intro-stage{perspective:none;overflow:auto;-webkit-mask-image:none;mask-image:none;top:20%;bottom:90px}
+#pp-root .pp-intro.static .pp-crawl{position:relative;left:auto;margin:0 auto;font-size:12px}
 #pp-root .pp-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
 @media (max-width:900px){
@@ -358,7 +399,7 @@ html,body{background:#05060f}
         </div>
       </div>
 
-      <div class="pp-card pp-badgecard locked" id="ppBadgeCard">
+      <div class="pp-card pp-badgecard locked" id="ppBadgeCard" hidden>
         <div class="pp-badge" id="ppBadge"></div>
         <div class="pp-badgeinfo">
           <div class="lbl" id="ppBadgeLbl">ACHIEVEMENT &middot; LOCKED</div>
@@ -390,6 +431,26 @@ html,body{background:#05060f}
       </div>
       <div class="pp-press">Keys: N / P choose &middot; Enter submit &middot; +/&minus; zoom &middot; F fullscreen</div>
     </div>
+  </div>
+
+  <!-- intro crawl -->
+  <div class="pp-intro" id="ppIntro" role="dialog" aria-label="Intro">
+    <div class="pp-intro-head" id="ppIntroHead">INCOMING TRANSMISSION<b>EARTH DEFENCE RADIOLOGY COMMAND</b></div>
+    <div class="pp-intro-stage" id="ppIntroStage">
+      <div class="pp-crawl" id="ppCrawl">
+        <p class="big">PNEUMO PATROL</p>
+        <p>The year is 2187.<br>The Free Earth is under siege.</p>
+        <p>A fleet of <em>Pneumo Invaders</em> has slipped past the outer defences. They hide where few think to look: in the thin black space between the lung and the chest wall.</p>
+        <p>Every chest X-ray they beam down could be hiding a collapsed lung.</p>
+        <p>The scanners are blinking. The radiologists are outnumbered. Earth Defence Radiology Command has one line of defence left&hellip;</p>
+        <p class="you">YOU, CADET.</p>
+        <p>Inspect every film. Call every pneumothorax. Mark it on the image before it escapes.</p>
+        <p>Leave no lung behind.</p>
+        <p class="big">DEFEND THE<br>FREE EARTH!</p>
+      </div>
+    </div>
+    <button class="pp-big pp-intro-go" id="ppIntroGo">BEGIN PATROL &#9654;</button>
+    <div class="pp-intro-skip"><span>ESC / SPACE</span><button class="pp-chip" id="ppIntroSkip">SKIP INTRO &#9654;&#9654;</button></div>
   </div>
 
   <!-- wave banner -->
@@ -610,7 +671,9 @@ var S = {
 var waves = WAVES.map(function(w, wi){ return { meta: w, cases: CASES.filter(function(c){ return c.wave === wi; }) }; })
                  .filter(function(w){ return w.cases.length; });
 var TOTAL = waves.reduce(function(n, w){ return n + w.cases.length; }, 0);
-var SPEED_WINDOW = 60;   // seconds over which the speed bonus decays
+var SPEED_WINDOW = 60;
+var ACH_MIN = 3;          // badge stays hidden until the opening wave has this many cases
+var ACH_ON = waves.length > 0 && waves[0].cases.length >= ACH_MIN;   // seconds over which the speed bonus decays
 
 function cur(){ return S.review ? S.reviewCase : waves[S.w].cases[S.i]; }
 function pad(n, l){ n = String(n); while (n.length < l) n = "0"+n; return n; }
@@ -1029,6 +1092,38 @@ var Game = (function(){
       say("New case received. Inspect the chest X-ray and classify it.");
     });
   }
+  var introDone = null, introAnim = null;
+  function playIntro(){
+    return new Promise(function(res){
+      var el = $("ppIntro"), stage = $("ppIntroStage"), crawl = $("ppCrawl"), head = $("ppIntroHead"), go = $("ppIntroGo");
+      el.classList.add("on"); el.classList.toggle("static", REDUCED);
+      head.classList.remove("on"); go.classList.remove("on");
+      introDone = function(){
+        if (!introDone) return;
+        introDone = null;
+        if (introAnim){ introAnim.cancel(); introAnim = null; }
+        el.classList.remove("on");
+        res();
+      };
+      SFX.play("incoming");
+      setTimeout(function(){ head.classList.add("on"); }, 150);
+      if (REDUCED || !crawl.animate){ crawl.style.transform = "none"; go.classList.add("on"); go.focus({ preventScroll:true }); return; }
+      var H = stage.clientHeight, h = crawl.offsetHeight;
+      var from = "rotateX(26deg) translateY(" + H + "px)", to = "rotateX(26deg) translateY(" + (-h - 40) + "px)";
+      crawl.style.transform = from;
+      introAnim = crawl.animate([{ transform: from }, { transform: to }], { duration: (H + h) / 38 * 1000, easing: "linear", fill: "forwards" });
+      introAnim.onfinish = function(){ if (introDone) introDone(); };
+      setTimeout(function(){ if (introDone){ go.classList.add("on"); } }, Math.max(0, (H + h) / 38 * 1000 - (H * 0.9) / 38 * 1000));
+      $("ppIntroSkip").focus({ preventScroll:true });
+    });
+  }
+  function skipIntro(){ if (introDone){ SFX.play("select"); introDone(); } }
+  function introOpen(){ return !!introDone; }
+  function launch(mode){
+    SFX.ensure();
+    $("ppTitle").classList.remove("on");
+    playIntro().then(function(){ startGame(mode); });
+  }
   function startGame(mode){
     SFX.ensure();
     S.mode = mode; S.review = false; S.w = 0; S.i = 0; S.score = 0; S.streak = 0; S.bestStreak = 0; S.results = [];
@@ -1108,7 +1203,7 @@ var Game = (function(){
     if (!endOfWave){ S.i++; nextCase(); return; }
     var wasOpening = S.w === 0;
     AR.waveClear().then(function(){
-      if (wasOpening){
+      if (wasOpening && ACH_ON){
         var op = S.results.filter(function(r){ return r.wave === 0; });
         if (op.length === waves[0].cases.length && op.every(function(r){ return r.correct; })){
           S.unlocked = true; save("unlocked", true); badge(); toast();
@@ -1185,7 +1280,7 @@ var Game = (function(){
     say("Achievement unlocked: No Lung Left Behind.");
   }
 
-  return { startGame:startGame, choose:choose, submit:submit, next:next, markersChanged:markersChanged, say:say,
+  return { startGame:startGame, launch:launch, skipIntro:skipIntro, introOpen:introOpen, choose:choose, submit:submit, next:next, markersChanged:markersChanged, say:say,
            revisit:revisit, toMenu:toMenu, tick:tick, hud:hud, badge:badge, toast:toast, setChoiceUI:setChoiceUI };
 })();
 
@@ -1211,6 +1306,7 @@ document.addEventListener("webkitfullscreenchange", function(){ setTimeout(V.siz
   $("ppBadgeReq").textContent = n === 1 ? "Correctly classify the opening case." : "Correctly classify all " + w + " opening cases.";
   $("ppAchSub").innerHTML = "Pneumo Patrol &middot; " + (n === 1 ? "opening case" : "all " + w + " opening cases") + " correct";
   $("ppPips").innerHTML = new Array(n + 1).join("<i></i>");
+  $("ppBadgeCard").hidden = !ACH_ON;
 })();
 $("ppLogoMark").src = ASSETS.logo_mark || "";
 $("ppLogoFull").src = ASSETS.logo_full || "";
@@ -1230,8 +1326,10 @@ function setSound(on){
 setSound(SFX.on);
 $("ppSound").onclick = function(){ setSound(!SFX.on); };
 $("ppMenu").onclick = Game.toMenu;
-$("ppStart").onclick = function(){ Game.startGame("patrol"); };
-$("ppPractice").onclick = function(){ Game.startGame("practice"); };
+$("ppStart").onclick = function(){ Game.launch("patrol"); };
+$("ppPractice").onclick = function(){ Game.launch("practice"); };
+$("ppIntroSkip").onclick = Game.skipIntro;
+$("ppIntroGo").onclick = Game.skipIntro;
 $("ppAgain").onclick = function(){ Game.startGame(S.mode); };
 $("ppToMenu").onclick = Game.toMenu;
 $("ppNo").onclick = function(){ Game.choose("no"); };
@@ -1252,7 +1350,11 @@ document.addEventListener("keydown", function(e){
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   var t = e.target; if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
   var k = e.key;
-  if (S.phase === "title" && k === "Enter" && $("ppTitle").classList.contains("on") && !(t && t.tagName === "BUTTON")){ Game.startGame("patrol"); e.preventDefault(); return; }
+  if (Game.introOpen()){
+    if (k === "Escape" || k === " " || (k === "Enter" && !(t && t.tagName === "BUTTON"))){ Game.skipIntro(); e.preventDefault(); }
+    return;
+  }
+  if (S.phase === "title" && k === "Enter" && $("ppTitle").classList.contains("on") && !(t && t.tagName === "BUTTON")){ Game.launch("patrol"); e.preventDefault(); return; }
   if (k === "n" || k === "N") Game.choose("no");
   else if (k === "p" || k === "P") Game.choose("ptx");
   else if (k === "Enter" && !(t && t.tagName === "BUTTON")){ if (S.phase === "inspect") Game.submit(); else if (S.phase === "reveal") Game.next(); else return; }
