@@ -703,6 +703,7 @@ var ACH_MIN = 3;          // badge stays hidden until the opening wave has this 
 var ACH_ON = waves.length > 0 && waves[0].cases.length >= ACH_MIN;   // seconds over which the speed bonus decays
 
 function cur(){ return S.review ? S.reviewCase : waves[S.w].cases[S.i]; }
+function shuffle(a){ for (var i = a.length - 1; i > 0; i--){ var j = Math.floor(Math.random()*(i+1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
 function pad(n, l){ n = String(n); while (n.length < l) n = "0"+n; return n; }
 
 /* ---------- starfield ---------- */
@@ -1163,6 +1164,7 @@ var Game = (function(){
   }
   function startGame(mode){
     SFX.ensure();
+    waves.forEach(function(w){ shuffle(w.cases); });   // fresh order every game; waves keep their difficulty
     S.mode = mode; S.review = false; S.w = 0; S.i = 0; S.score = 0; S.streak = 0; S.bestStreak = 0; S.results = [];
     $("ppTitle").classList.remove("on"); $("ppEnd").classList.remove("on");
     badge(); hud();
