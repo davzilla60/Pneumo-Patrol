@@ -26,7 +26,8 @@ HIT_TOLERANCE = 0.04    # marker counts as "on target" within 4% of image width 
 # cases correctly to unlock "No Lung Left Behind".
 # Add waves here as more cases arrive (e.g. "Edge Runners", "Stealth Fleet" for subtler / supine cases).
 WAVES = [
-    {"name": "Opening Salvo", "blurb": "Incoming cases. Classify every one correctly to unlock the badge."},
+    {"name": "Opening Salvo", "blurb": "Three incoming cases. Classify every one correctly to unlock the badge."},
+    {"name": "Stealth Fleet", "blurb": "Smaller apical collections. Look behind the clavicles and first ribs, on both sides."},
 ]
 
 # "wave" is the index into WAVES. "ptx": False marks a normal (no pneumothorax) case.
@@ -40,6 +41,67 @@ CASES = [
             "Thin white visceral pleural line curving under the right apex and down the lateral wall.",
             "Lateral to the line the lung is black, with no vessels crossing it.",
             "Trachea and mediastinum central: simple, not tension.",
+        ],
+    },
+    {
+        "id": "case03", "wave": 0, "ptx": True,
+        "title": "Large right pneumothorax",
+        "summary": "Large right pneumothorax from the apex to the costophrenic angle, with the right lung collapsed towards the hilum.",
+        "findings": [
+            "The edge of the collapsed right lung is visible as a curved white line in the mid zone.",
+            "Everything between that edge and the chest wall is black, with no lung markings, from apex to base.",
+            "Compare the two sides: the right hemithorax is darker than the left because it is mostly air.",
+        ],
+    },
+    {
+        "id": "case05", "wave": 0, "ptx": True,
+        "title": "Large left pneumothorax",
+        "summary": "Large left pneumothorax from the apex down the whole lateral chest wall, with the left lung collapsed medially.",
+        "findings": [
+            "The collapsed left lung sits next to the heart border, outlined by its visceral pleural edge.",
+            "A wide black band with no vessels runs from the left apex to the costophrenic angle.",
+            "The marker &ldquo;右&rdquo; means &ldquo;right&rdquo;, so the pneumothorax is on the patient&rsquo;s left.",
+        ],
+    },
+    # ---- wave 2: stealth fleet -------------------------------------------------------
+    {
+        "id": "case02", "wave": 1, "ptx": True,
+        "title": "Small right apical pneumothorax",
+        "summary": "Small right pneumothorax confined to the apex.",
+        "findings": [
+            "Thin curved pleural line arching under the right apex, just below the clavicle.",
+            "Above the line the apex is slightly blacker, with no vessels crossing it.",
+            "Small apical collections hide behind the clavicle and first rib: check both apices on every film.",
+        ],
+    },
+    {
+        "id": "case04", "wave": 1, "ptx": True,
+        "title": "Small left apical pneumothorax",
+        "summary": "Small left pneumothorax over the apex, curving down a short way laterally.",
+        "findings": [
+            "Fine pleural edge arching over the left apex beneath the clavicle and first rib.",
+            "Lateral and above the line there are no lung markings.",
+            "The marker here is &ldquo;L&rdquo;, on the patient&rsquo;s left: always check the side marker.",
+        ],
+    },
+    {
+        "id": "case06", "wave": 1, "ptx": True,
+        "title": "Right apicolateral pneumothorax",
+        "summary": "Right pneumothorax over the apex, tracking down the lateral upper zone.",
+        "findings": [
+            "Visceral pleural line curving under the right apex and running down the lateral wall.",
+            "The space outside the line is black and empty of vessels.",
+            "Overlapping ribs and clavicle can hide the edge: trace it rib by rib.",
+        ],
+    },
+    {
+        "id": "case07", "wave": 1, "ptx": True,
+        "title": "Left apicolateral pneumothorax",
+        "summary": "Thin left pneumothorax over the apex, extending down the lateral upper zone.",
+        "findings": [
+            "Very thin pleural line following the curve of the left apex and upper chest wall.",
+            "Only a narrow rim of air: easy to mistake for a rib edge or skin fold.",
+            "A skin fold usually runs beyond the chest wall; a pleural edge stays inside it and has no markings outside it.",
         ],
     },
 ]

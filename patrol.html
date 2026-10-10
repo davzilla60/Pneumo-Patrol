@@ -1316,7 +1316,7 @@ $("ppAchMarker").innerHTML = pixelSVG(SPR.badge);
 $("ppTitleSprites").innerHTML = [SPR.squidA, SPR.crabA, SPR.mother, SPR.crabB, SPR.squidB].map(function(m){ return pixelSVG(m); }).join("");
 $("ppFoot").innerHTML = "Images: " + SOURCE.citation + ' <a href="' + SOURCE.url + '" target="_blank" rel="noopener">' + SOURCE.url + "</a>, " +
   '<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. ' +
-  "Changes: segmentation masks rendered as coloured answer overlays and scoring regions. Teaching game, not for clinical use.";
+  "Changes: segmentation masks rendered as coloured answer overlays and scoring regions; one mask recovered from a pre-overlaid preview image. Teaching game, not for clinical use.";
 
 function setSound(on){
   SFX.on = on; save("sound", on);
