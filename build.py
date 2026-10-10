@@ -27,10 +27,12 @@ HIT_TOLERANCE = 0.04    # marker counts as "on target" within 4% of image width 
 # Add waves here as more cases arrive (e.g. "Edge Runners", "Stealth Fleet" for subtler / supine cases).
 WAVES = [
     {"name": "Opening Salvo", "blurb": "Three incoming cases. Classify every one correctly to unlock the badge."},
+    {"name": "Friend or Foe", "blurb": "Not every contact is hostile. Clear films are friendly: hold your fire."},
     {"name": "Stealth Fleet", "blurb": "Smaller apical collections. Look behind the clavicles and first ribs, on both sides."},
 ]
 
 # "wave" is the index into WAVES. "ptx": False marks a normal (no pneumothorax) case.
+# "source" is a key into SOURCES (defaults to "ptx498").
 # Text is shown on the answer reveal.
 CASES = [
     {
@@ -63,7 +65,17 @@ CASES = [
             "The marker &ldquo;右&rdquo; means &ldquo;right&rdquo;, so the pneumothorax is on the patient&rsquo;s left.",
         ],
     },
-    # ---- wave 2: stealth fleet -------------------------------------------------------
+    # ---- wave 2: friend or foe -------------------------------------------------------
+    {
+        "id": "norm01", "wave": 1, "ptx": False, "source": "cradi",
+        "title": "No pneumothorax: lines and clips",
+        "summary": "No pneumothorax. A line enters from the right neck and metallic surgical clips project over the right upper zone.",
+        "findings": [
+            "Lung markings continue all the way out to the chest wall on both sides.",
+            "Tubes, lines and clips create edges that can mimic a pleural line: follow each one and check that markings continue beyond it.",
+            "Both apices contain vessels, with no black, empty rim.",
+        ],
+    },
     {
         "id": "case02", "wave": 1, "ptx": True,
         "title": "Small right apical pneumothorax",
@@ -72,6 +84,16 @@ CASES = [
             "Thin curved pleural line arching under the right apex, just below the clavicle.",
             "Above the line the apex is slightly blacker, with no vessels crossing it.",
             "Small apical collections hide behind the clavicle and first rib: check both apices on every film.",
+        ],
+    },
+    {
+        "id": "norm02", "wave": 1, "ptx": False, "source": "cradi",
+        "title": "No pneumothorax: busy film",
+        "summary": "No pneumothorax. Overlapping scapulae, soft tissues and stomach gas make this a busy film, but both lungs reach the chest wall.",
+        "findings": [
+            "Lung markings reach the periphery of both lungs, including the apices.",
+            "Scapular edges and soft-tissue folds can look like a pleural line; a true pleural edge has no lung markings beyond it.",
+            "The air&ndash;fluid level below the left hemidiaphragm is gas in the stomach, not air in the pleural space.",
         ],
     },
     {
@@ -84,8 +106,9 @@ CASES = [
             "The marker here is &ldquo;L&rdquo;, on the patient&rsquo;s left: always check the side marker.",
         ],
     },
+    # ---- wave 3: stealth fleet -------------------------------------------------------
     {
-        "id": "case06", "wave": 1, "ptx": True,
+        "id": "case06", "wave": 2, "ptx": True,
         "title": "Right apicolateral pneumothorax",
         "summary": "Right pneumothorax over the apex, tracking down the lateral upper zone.",
         "findings": [
@@ -95,7 +118,17 @@ CASES = [
         ],
     },
     {
-        "id": "case07", "wave": 1, "ptx": True,
+        "id": "norm03", "wave": 2, "ptx": False, "source": "cradi",
+        "title": "Normal chest: no pneumothorax",
+        "summary": "Normal chest radiograph. Both lungs are fully expanded.",
+        "findings": [
+            "The apices look dark, but vessels can be traced into them: that is aerated lung, not a pneumothorax.",
+            "Both lungs reach the chest wall, with sharp costophrenic angles.",
+            "Dark is not the same as empty. Look for the absence of markings beyond a thin white line.",
+        ],
+    },
+    {
+        "id": "case07", "wave": 2, "ptx": True,
         "title": "Left apicolateral pneumothorax",
         "summary": "Thin left pneumothorax over the apex, extending down the lateral upper zone.",
         "findings": [
@@ -107,10 +140,21 @@ CASES = [
 ]
 
 # Image source attribution (CC BY 4.0: creator, title, source link, licence link, changes).
-SOURCE = {
-    "citation": "Wang, Y. (2021). PTX-498: A multi-center pneumothorax segmentation chest X-ray "
-                "image dataset [Data set]. In Neurocomputing (Version v2-fix, Vol. 454, pp. 201–211). Zenodo.",
-    "url": "https://doi.org/10.5281/zenodo.8266529",
+SOURCES = {
+    "ptx498": {
+        "citation": "Wang, Y. (2021). PTX-498: A multi-center pneumothorax segmentation chest X-ray "
+                    "image dataset [Data set]. In Neurocomputing (Version v2-fix, Vol. 454, pp. 201–211). Zenodo.",
+        "url": "https://doi.org/10.5281/zenodo.8266529",
+        "used": "pneumothorax cases",
+        "changes": "segmentation masks rendered as coloured answer overlays and scoring regions; "
+                   "one mask recovered from a pre-overlaid preview image",
+    },
+    "cradi": {
+        "citation": "Liu, M., & Xie, X. (2021). Chest Radiograph at Diverse Institutes (CRADI) dataset [Data set]. Zenodo.",
+        "url": "https://doi.org/10.5281/zenodo.5493595",
+        "used": "no-pneumothorax cases",
+        "changes": "converted to greyscale JPEG and resized to 1024 px",
+    },
 }
 
 FILL = (255, 70, 90)      # overlay tint
@@ -175,7 +219,7 @@ def main():
     cases = []
     for c in CASES:
         xray = A / f"{c['id']}_xray.jpg"
-        entry = {**c, "xray": data_uri(xray), "thumb": make_thumb(xray), "overlay": None, "hit": None}
+        entry = {"source": "ptx498", **c, "xray": data_uri(xray), "thumb": make_thumb(xray), "overlay": None, "hit": None}
         if c["ptx"]:
             m = load_mask(c["id"])
             entry["overlay"] = data_uri(make_overlay(c["id"], m))
@@ -185,7 +229,7 @@ def main():
     src = (ROOT / "patrol.html").read_text(encoding="utf-8")
     out = (src.replace("/*__CASES__*/[]", json.dumps(cases))
               .replace("/*__WAVES__*/[]", json.dumps(WAVES))
-              .replace("/*__SOURCE__*/{}", json.dumps(SOURCE))
+              .replace("/*__SOURCE__*/{}", json.dumps(SOURCES))
               .replace("/*__ASSETS__*/{}", json.dumps(assets))
               .replace("/*__GRID__*/0", str(GRID)))
     (ROOT / "patrol.embed.html").write_text(out, encoding="utf-8")

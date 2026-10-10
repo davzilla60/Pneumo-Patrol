@@ -211,7 +211,7 @@ html,body{background:#05060f}
 #pp-root .pp-missed .t small{display:block;color:var(--dim)}
 #pp-root .pp-perfect{font-family:var(--pix);font-size:9px;color:var(--green);line-height:1.7;margin-bottom:18px}
 
-/* ---------- achievement toast (Rad-Lad marker animation) ---------- */
+/* ---------- marker toast (Rad-Lad marker animation) ---------- */
 #pp-root .pp-ach-wrap{position:absolute;top:70px;right:14px;z-index:40;width:min(440px,calc(100% - 28px));display:none}
 #pp-root .pp-ach-wrap.on{display:block}
 #pp-root .pp-ach{
@@ -402,10 +402,19 @@ html,body{background:#05060f}
       <div class="pp-card pp-badgecard locked" id="ppBadgeCard" hidden>
         <div class="pp-badge" id="ppBadge"></div>
         <div class="pp-badgeinfo">
-          <div class="lbl" id="ppBadgeLbl">ACHIEVEMENT &middot; LOCKED</div>
+          <div class="lbl" id="ppBadgeLbl">MARKER &middot; LOCKED</div>
           <div class="nm">No Lung Left Behind</div>
           <p id="ppBadgeReq">Correctly classify every opening case.</p>
           <div class="pp-pips" id="ppPips"></div>
+        </div>
+      </div>
+
+      <div class="pp-card pp-badgecard locked" id="ppBadgeCard2">
+        <div class="pp-badge" id="ppBadge2"></div>
+        <div class="pp-badgeinfo">
+          <div class="lbl" id="ppBadgeLbl2">MARKER &middot; LOCKED</div>
+          <div class="nm">Houston, We Have a Pneumo</div>
+          <p id="ppBadgeReq2">Complete every case in a patrol.</p>
         </div>
       </div>
     </aside>
@@ -471,19 +480,19 @@ html,body{background:#05060f}
     </div>
   </div>
 
-  <!-- achievement toast -->
+  <!-- marker toast -->
   <div class="pp-ach-wrap" id="ppAch" role="status">
     <div class="pp-ach">
       <img class="pp-ach-logo" id="ppAchLogo" alt="Rad-Lad">
       <div class="pp-ach-marker" id="ppAchMarker"></div>
       <div class="pp-ach-text">
-        <div class="pp-ach-label">Achievement Unlocked</div>
-        <div class="pp-ach-title">No Lung Left Behind</div>
+        <div class="pp-ach-label">Marker Unlocked</div>
+        <div class="pp-ach-title" id="ppAchTitle">No Lung Left Behind</div>
         <div class="pp-ach-sub" id="ppAchSub">Pneumo Patrol &middot; every opening case correct</div>
       </div>
       <div class="pp-ach-btns"><button id="ppAchReplay">Replay</button><button id="ppAchClose" aria-label="Close">&times;</button></div>
     </div>
-    <div class="pp-ach-share">Share your <strong>No Lung Left Behind</strong> achievement below!</div>
+    <div class="pp-ach-share">Share your <strong id="ppAchShare">No Lung Left Behind</strong> Marker achievement below!</div>
   </div>
 
   <div class="pp-sr" id="ppLive" aria-live="polite"></div>
@@ -570,6 +579,24 @@ var SPR = {
     "ywllwy",
     "ywwwwy",
     ".yyyy."],
+  rocket:[
+    ".......rr.......",
+    "......rrrr......",
+    ".w....cccc......",
+    ".....cccccc.....",
+    ".....ccbbcc.....",
+    ".....cbwwbc.....",
+    ".....cbbbbc.....",
+    ".....ccbbcc.....",
+    ".....cccccc...w.",
+    ".....cccccc.....",
+    "....rccccccr....",
+    "...rrccccccrr...",
+    "...rr.cccc.rr...",
+    "......yooy......",
+    "w....yoyyoy.....",
+    "......yooy......",
+    ".......yy......."],
   badge:[
     "..........cc..........",
     ".........cccc.........",
@@ -664,7 +691,7 @@ var SFX = {
 var S = {
   mode: "patrol", review: false, phase: "title",   // title | incoming | inspect | reveal | between | end
   w: 0, i: 0, score: 0, streak: 0, bestStreak: 0,
-  hi: load("hi", 0), unlocked: load("unlocked", false),
+  hi: load("hi", 0), unlocked: load("unlocked", false), unlocked2: load("unlocked2", false),
   choice: null, markers: [], results: [], t0: 0, elapsed: 0,
   invert: false, showOv: true
 };
@@ -742,7 +769,9 @@ var AR = (function(){
       (function step(now){
         var k = Math.min(1, (now - t0)/dur), e = 1 - Math.pow(1-k, 3);
         obj[key] = from + (to-from)*e;
-        if (k < 1) requestAnimationFrame(step); else res();
+        if (k >= 1) res();
+        else if (document.hidden) setTimeout(function(){ step(performance.now()); }, 50);   // rAF pauses in hidden tabs
+        else requestAnimationFrame(step);
       })(t0);
     });
   }
@@ -881,8 +910,14 @@ var V = (function(){
     return new Promise(function(res){
       var a = new Image(), b = c.overlay ? new Image() : null, n = b ? 2 : 1;
       function done(){ if (--n === 0){ img = a; ov = b; hit = c.hit ? decodeHit(c.hit) : null; revealA = 0; size(); reset(); res(); } }
-      a.onload = done; a.src = c.xray;
-      if (b){ b.onload = done; b.src = c.overlay; }
+      function get(im, src){
+        var tries = 0;
+        im.onload = done;
+        im.onerror = function(){ if (++tries < 4) setTimeout(function(){ im.src = src + (src.indexOf("data:") ? (src.indexOf("?") < 0 ? "?" : "&") + "r=" + tries : ""); }, 400*tries); };
+        im.src = src;
+      }
+      get(a, c.xray);
+      if (b) get(b, c.overlay);
     });
   }
   function decodeHit(b64){ var s = atob(b64), u = new Uint8Array(s.length); for (var i=0;i<s.length;i++) u[i] = s.charCodeAt(i); return u; }
@@ -1035,7 +1070,9 @@ var Game = (function(){
   }
   function badge(){
     $("ppBadgeCard").classList.toggle("locked", !S.unlocked);
-    $("ppBadgeLbl").innerHTML = S.unlocked ? "ACHIEVEMENT &middot; UNLOCKED" : "ACHIEVEMENT &middot; LOCKED";
+    $("ppBadgeLbl").innerHTML = S.unlocked ? "MARKER &middot; UNLOCKED" : "MARKER &middot; LOCKED";
+    $("ppBadgeCard2").classList.toggle("locked", !S.unlocked2);
+    $("ppBadgeLbl2").innerHTML = S.unlocked2 ? "MARKER &middot; UNLOCKED" : "MARKER &middot; LOCKED";
     var pips = $("ppPips").children, op = S.results.filter(function(r){ return r.wave === 0; });
     for (var i=0;i<pips.length;i++){
       pips[i].className = op[i] ? (op[i].correct ? "ok" : "no") : "";
@@ -1211,6 +1248,10 @@ var Game = (function(){
       }
       if (S.w < waves.length - 1){ S.w++; S.i = 0; return showWave().then(nextCase); }
       showEnd();
+      if (S.results.length === TOTAL){
+        S.unlocked2 = true; save("unlocked2", true); badge();
+        setTimeout(function(){ toast("houston"); }, wasOpening && ACH_ON ? 3500 : 400);
+      }
     });
   }
   function showEnd(){
@@ -1269,19 +1310,28 @@ var Game = (function(){
     $("ppTimerTxt").textContent = b ? "SPEED BONUS +" + b : "NO SPEED BONUS";
   }
 
-  /* achievement toast */
-  var toastT = 0;
-  function toast(){
-    var w = $("ppAch");
+  /* marker toast */
+  var MARKERS = {
+    lung:    { title: "No Lung Left Behind", sprite: "badge" },
+    houston: { title: "Houston, We Have a Pneumo", sprite: "rocket", sub: "Pneumo Patrol &middot; all " + TOTAL + " cases completed" }
+  };
+  var toastT = 0, lastToast = "lung";
+  function toast(id){
+    id = typeof id === "string" ? id : lastToast; lastToast = id;
+    var m = MARKERS[id], w = $("ppAch");
+    $("ppAchTitle").textContent = m.title; $("ppAchShare").textContent = m.title;
+    if (m.sub) $("ppAchSub").innerHTML = m.sub;
+    $("ppAchMarker").innerHTML = pixelSVG(SPR[m.sprite]);
     clearTimeout(toastT);
     toastT = setTimeout(function(){ w.classList.remove("on", "is-playing"); }, 9000);
     w.classList.add("on"); w.classList.remove("is-playing"); void w.offsetWidth; w.classList.add("is-playing");
     setTimeout(function(){ SFX.play("ach"); }, REDUCED ? 0 : 600);
-    say("Achievement unlocked: No Lung Left Behind.");
+    say("Marker unlocked: " + m.title + ".");
   }
 
   return { startGame:startGame, launch:launch, skipIntro:skipIntro, introOpen:introOpen, choose:choose, submit:submit, next:next, markersChanged:markersChanged, say:say,
-           revisit:revisit, toMenu:toMenu, tick:tick, hud:hud, badge:badge, toast:toast, setChoiceUI:setChoiceUI };
+           revisit:revisit, toMenu:toMenu, tick:tick, hud:hud, badge:badge, toast:toast, setChoiceUI:setChoiceUI,
+           setLungSub:function(t){ MARKERS.lung.sub = t; } };
 })();
 
 /* ---------- fullscreen ---------- */
@@ -1304,7 +1354,10 @@ document.addEventListener("webkitfullscreenchange", function(){ setTimeout(V.siz
   var n = waves.length ? waves[0].cases.length : 0, words = ["", "one", "two", "three", "four", "five", "six"];
   var w = words[n] || String(n);
   $("ppBadgeReq").textContent = n === 1 ? "Correctly classify the opening case." : "Correctly classify all " + w + " opening cases.";
-  $("ppAchSub").innerHTML = "Pneumo Patrol &middot; " + (n === 1 ? "opening case" : "all " + w + " opening cases") + " correct";
+  var sub = "Pneumo Patrol &middot; " + (n === 1 ? "opening case" : "all " + w + " opening cases") + " correct";
+  $("ppAchSub").innerHTML = sub;
+  Game.setLungSub(sub);
+  $("ppBadgeReq2").textContent = "Complete all " + TOTAL + " cases in a patrol.";
   $("ppPips").innerHTML = new Array(n + 1).join("<i></i>");
   $("ppBadgeCard").hidden = !ACH_ON;
 })();
@@ -1313,10 +1366,12 @@ $("ppLogoFull").src = ASSETS.logo_full || "";
 $("ppAchLogo").src = ASSETS.logo_mark || "";
 $("ppBadge").innerHTML = pixelSVG(SPR.badge, "No Lung Left Behind badge: a spaceship above a pair of lungs");
 $("ppAchMarker").innerHTML = pixelSVG(SPR.badge);
+$("ppBadge2").innerHTML = pixelSVG(SPR.rocket, "Houston, We Have a Pneumo badge: a pixel rocket");
 $("ppTitleSprites").innerHTML = [SPR.squidA, SPR.crabA, SPR.mother, SPR.crabB, SPR.squidB].map(function(m){ return pixelSVG(m); }).join("");
-$("ppFoot").innerHTML = "Images: " + SOURCE.citation + ' <a href="' + SOURCE.url + '" target="_blank" rel="noopener">' + SOURCE.url + "</a>, " +
-  '<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. ' +
-  "Changes: segmentation masks rendered as coloured answer overlays and scoring regions; one mask recovered from a pre-overlaid preview image. Teaching game, not for clinical use.";
+$("ppFoot").innerHTML = "Images: " + Object.keys(SOURCE).map(function(k){
+    var src = SOURCE[k];
+    return src.citation + ' <a href="' + src.url + '" target="_blank" rel="noopener">' + src.url + "</a> (" + src.used + "; changes: " + src.changes + ")";
+  }).join(". ") + '. All licensed <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Teaching game, not for clinical use.';
 
 function setSound(on){
   SFX.on = on; save("sound", on);
@@ -1343,7 +1398,7 @@ $("ppFull").onclick = toggleFull;
 $("ppInvert").onclick = function(){ S.invert = !S.invert; this.setAttribute("aria-pressed", S.invert); V.draw(); };
 $("ppOvBtn").onclick = function(){ S.showOv = !S.showOv; this.setAttribute("aria-pressed", S.showOv); V.draw(); };
 $("ppMissed").addEventListener("click", function(e){ var b = e.target.closest("[data-rev]"); if (b) Game.revisit(b.getAttribute("data-rev")); });
-$("ppAchReplay").onclick = Game.toast;
+$("ppAchReplay").onclick = function(){ Game.toast(); };
 $("ppAchClose").onclick = function(){ $("ppAch").classList.remove("on", "is-playing"); };
 
 document.addEventListener("keydown", function(e){
