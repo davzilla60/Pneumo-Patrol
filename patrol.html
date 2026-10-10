@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pneumo Patrol</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#05060f}
+#pp-root{
+  --bg:#05060f; --panel:rgba(9,11,28,.88); --ink:#e8ecff; --dim:#8c95bd;
+  --cyan:#36f3ff; --mag:#ff3df2; --green:#4dff88; --yellow:#ffe45c; --red:#ff4d6a;
+  --pix:'Press Start 2P',ui-monospace,monospace;
+  --sans:'Segoe UI',system-ui,-apple-system,sans-serif;
+  position:relative;height:100vh;min-height:640px;display:flex;flex-direction:column;
+  background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden;
+}
+#pp-root button{font:inherit;color:inherit;cursor:pointer}
+#pp-root button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
+#pp-root .pp-stars{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+#pp-root > :not(.pp-stars){position:relative;z-index:1}
+
+/* ---------- HUD / scoreboard ---------- */
+#pp-root .pp-hud{
+  display:flex;align-items:center;gap:14px;padding:8px 14px;flex-wrap:wrap;
+  border-bottom:2px solid var(--mag);box-shadow:0 0 14px rgba(255,61,242,.45);
+  background:rgba(5,6,15,.75);
+}
+#pp-root .pp-brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+#pp-root .pp-brand img{width:38px;height:28px;object-fit:contain;background:#d3d5d3;border-radius:4px;padding:2px}
+#pp-root .pp-brand b{font-family:var(--pix);font-size:13px;color:var(--cyan);text-shadow:0 0 8px var(--cyan);letter-spacing:1px}
+#pp-root .pp-score{display:flex;gap:16px;flex-wrap:wrap}
+#pp-root .pp-cell{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+#pp-root .pp-cell span{font-family:var(--pix);font-size:8px;color:var(--mag)}
+#pp-root .pp-cell output{font-family:var(--pix);font-size:12px;color:var(--ink);text-shadow:0 0 6px rgba(54,243,255,.7)}
+#pp-root .pp-cell.hot output{color:var(--yellow);text-shadow:0 0 8px var(--yellow)}
+#pp-root .pp-hudbtns{display:flex;gap:8px}
+#pp-root .pp-chip{
+  font-family:var(--pix);font-size:8px;padding:7px 9px;border:2px solid var(--cyan);
+  background:transparent;border-radius:3px;color:var(--cyan);
+}
+#pp-root .pp-chip:hover{background:rgba(54,243,255,.12)}
+#pp-root .pp-chip[aria-pressed="false"]{border-color:var(--dim);color:var(--dim)}
+
+/* ---------- arcade strip ---------- */
+#pp-root .pp-arcade{height:124px;flex:none;border-bottom:2px solid var(--cyan);box-shadow:0 0 12px rgba(54,243,255,.35)}
+#pp-root .pp-arcade canvas{width:100%;height:100%;display:block}
+
+/* ---------- main ---------- */
+#pp-root .pp-main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:14px;padding:14px}
+#pp-root .pp-viewer{
+  display:flex;flex-direction:column;min-height:0;background:#000;
+  border:2px solid var(--cyan);border-radius:6px;box-shadow:0 0 18px rgba(54,243,255,.35),inset 0 0 0 1px rgba(54,243,255,.2);
+}
+#pp-root .pp-viewer:fullscreen{border:0;border-radius:0}
+#pp-root .pp-viewer.pp-pseudo-fs{position:fixed;inset:0;z-index:50;border-radius:0}
+#pp-root .pp-tools{
+  display:flex;align-items:center;gap:6px;padding:7px 8px;flex-wrap:wrap;
+  border-bottom:1px solid rgba(54,243,255,.3);background:rgba(9,11,28,.95);
+}
+#pp-root .pp-tool{
+  min-width:34px;height:30px;padding:0 9px;border:1px solid rgba(54,243,255,.55);border-radius:3px;
+  background:rgba(54,243,255,.06);font-family:var(--pix);font-size:9px;color:var(--cyan);
+}
+#pp-root .pp-tool:hover{background:rgba(54,243,255,.18)}
+#pp-root .pp-tool[aria-pressed="true"]{background:var(--cyan);color:#05060f}
+#pp-root .pp-zoomlvl{font-family:var(--pix);font-size:8px;color:var(--dim);min-width:44px;text-align:center}
+#pp-root .pp-hint{margin-left:auto;font-size:12px;color:var(--dim)}
+#pp-root .pp-hint.mark{color:var(--yellow)}
+#pp-root .pp-stage{flex:1;min-height:0;position:relative;overflow:hidden;touch-action:none;background:#000}
+#pp-root .pp-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#pp-root .pp-stage.marking{cursor:crosshair}
+#pp-root .pp-stage.panning{cursor:grabbing}
+#pp-root .pp-static{
+  position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;
+  background:#000;font-family:var(--pix);color:var(--green);font-size:12px;text-align:center;
+}
+#pp-root .pp-static.on{display:flex}
+#pp-root .pp-static canvas{opacity:.35}
+#pp-root .pp-static p{position:relative;text-shadow:0 0 10px var(--green);line-height:1.8;padding:0 16px}
+#pp-root .pp-static p small{display:block;color:var(--dim);font-size:9px}
+#pp-root .pp-blink{animation:pp-blink 1s steps(2) infinite}
+@keyframes pp-blink{50%{opacity:0}}
+#pp-root .pp-timer{height:6px;background:rgba(255,255,255,.06);position:relative;display:none;z-index:2}
+#pp-root .pp-timer.on{display:block}
+#pp-root .pp-timer i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--yellow),var(--green));box-shadow:0 0 8px var(--green)}
+#pp-root .pp-timer b{position:absolute;right:8px;top:14px;background:rgba(5,6,15,.85);padding:5px 7px;border:1px solid rgba(255,228,92,.5);font-family:var(--pix);font-size:7px;color:var(--yellow);font-weight:400}
+
+/* ---------- right panel ---------- */
+#pp-root .pp-panel{display:flex;flex-direction:column;gap:12px;min-height:0;overflow-y:auto;padding-right:2px}
+#pp-root .pp-card{
+  background:var(--panel);border:2px solid var(--mag);border-radius:6px;padding:14px;
+  box-shadow:0 0 14px rgba(255,61,242,.3);
+}
+#pp-root .pp-card h2{font-family:var(--pix);font-size:10px;color:var(--mag);margin-bottom:12px;line-height:1.6;font-weight:400}
+#pp-root .pp-casehead{font-size:12px;color:var(--dim);margin-bottom:12px}
+#pp-root .pp-choices{display:grid;gap:10px}
+#pp-root .pp-choice{
+  display:flex;align-items:center;gap:12px;padding:13px 12px;text-align:left;
+  background:rgba(255,255,255,.03);border:2px solid rgba(140,149,189,.5);border-radius:5px;
+  font-family:var(--pix);font-size:10px;line-height:1.5;
+}
+#pp-root .pp-choice .k{font-size:8px;color:var(--dim);margin-left:auto}
+#pp-root .pp-choice .dot{width:14px;height:14px;border:2px solid currentColor;flex:none}
+#pp-root .pp-choice:hover:not(:disabled){border-color:var(--cyan)}
+#pp-root .pp-choice[aria-pressed="true"]{border-color:var(--cyan);color:var(--cyan);background:rgba(54,243,255,.1);box-shadow:0 0 10px rgba(54,243,255,.35)}
+#pp-root .pp-choice[aria-pressed="true"] .dot{background:currentColor}
+#pp-root .pp-choice.ptx[aria-pressed="true"]{border-color:var(--yellow);color:var(--yellow);background:rgba(255,228,92,.08);box-shadow:0 0 10px rgba(255,228,92,.35)}
+#pp-root .pp-choice:disabled{opacity:.55;cursor:default}
+#pp-root .pp-markinfo{margin-top:12px;font-size:13px;line-height:1.45;color:var(--yellow);display:none}
+#pp-root .pp-markinfo.on{display:block}
+#pp-root .pp-markinfo small{display:block;color:var(--dim);font-size:12px;margin-top:4px}
+#pp-root .pp-submit{
+  margin-top:14px;width:100%;padding:14px;border:0;border-radius:5px;
+  font-family:var(--pix);font-size:11px;background:var(--green);color:#05060f;
+  box-shadow:0 0 14px rgba(77,255,136,.55),inset 0 -4px 0 rgba(0,0,0,.25);
+}
+#pp-root .pp-submit:disabled{background:#2a3048;color:#59617f;box-shadow:none;cursor:not-allowed}
+#pp-root .pp-submit:not(:disabled):hover{filter:brightness(1.1)}
+
+#pp-root .pp-verdict{font-family:var(--pix);font-size:13px;line-height:1.5;margin-bottom:8px}
+#pp-root .pp-verdict.good{color:var(--green);text-shadow:0 0 10px var(--green)}
+#pp-root .pp-verdict.bad{color:var(--red);text-shadow:0 0 10px var(--red)}
+#pp-root .pp-truth{font-size:14px;line-height:1.45;margin-bottom:10px}
+#pp-root .pp-truth b{color:var(--yellow)}
+#pp-root .pp-pts{width:100%;border-collapse:collapse;font-family:var(--pix);font-size:8px;margin:6px 0 12px}
+#pp-root .pp-pts td{padding:5px 0;border-bottom:1px dashed rgba(140,149,189,.25)}
+#pp-root .pp-pts td:last-child{text-align:right;color:var(--green)}
+#pp-root .pp-pts td.miss{color:var(--dim)}
+#pp-root .pp-pts tr.tot td{color:var(--yellow);border-bottom:0;padding-top:8px;font-size:10px}
+#pp-root .pp-explain{font-size:13.5px;line-height:1.5;color:#cfd5f2}
+#pp-root .pp-explain p{margin-bottom:8px}
+#pp-root .pp-explain ul{padding-left:18px;display:grid;gap:5px}
+#pp-root .pp-locmsg{font-size:13px;margin:0 0 10px;padding:8px 10px;border-left:3px solid var(--cyan);background:rgba(54,243,255,.06)}
+#pp-root .pp-rbtns{display:flex;gap:8px;margin-top:14px}
+#pp-root .pp-rbtns .pp-tool{height:auto;padding:10px}
+#pp-root .pp-next{flex:1;padding:12px;border:0;border-radius:5px;font-family:var(--pix);font-size:10px;background:var(--cyan);color:#05060f;box-shadow:0 0 12px rgba(54,243,255,.5)}
+
+/* badge card */
+#pp-root .pp-badgecard{display:flex;gap:14px;align-items:center;border-color:var(--green);box-shadow:0 0 14px rgba(77,255,136,.25)}
+#pp-root .pp-badge{
+  width:84px;height:84px;flex:none;display:grid;place-items:center;border-radius:8px;
+  background:radial-gradient(circle at 50% 40%,#13203a,#05060f 75%);
+  border:2px solid var(--green);box-shadow:0 0 14px rgba(77,255,136,.5),inset 0 0 12px rgba(77,255,136,.25);
+}
+#pp-root .pp-badge svg{width:66px;height:66px}
+#pp-root .pp-badgecard.locked .pp-badge{border-color:#3a4160;box-shadow:none}
+#pp-root .pp-badgecard.locked .pp-badge svg{filter:grayscale(1) brightness(.45)}
+#pp-root .pp-badgecard.locked{border-color:#3a4160;box-shadow:none}
+#pp-root .pp-badgeinfo .lbl{font-family:var(--pix);font-size:7px;color:var(--green);margin-bottom:6px}
+#pp-root .pp-badgecard.locked .lbl{color:var(--dim)}
+#pp-root .pp-badgeinfo .nm{font-family:var(--pix);font-size:10px;line-height:1.5;margin-bottom:6px}
+#pp-root .pp-badgeinfo p{font-size:12px;color:var(--dim);line-height:1.4}
+#pp-root .pp-pips{display:flex;gap:6px;margin-top:8px}
+#pp-root .pp-pips i{width:14px;height:14px;border:2px solid #3a4160}
+#pp-root .pp-pips i.ok{background:var(--green);border-color:var(--green);box-shadow:0 0 6px var(--green)}
+#pp-root .pp-pips i.no{background:var(--red);border-color:var(--red)}
+
+/* ---------- footer ---------- */
+#pp-root .pp-foot{flex:none;padding:6px 14px 8px;font-size:11px;color:#6d769c;line-height:1.4}
+#pp-root .pp-foot a{color:#8c95bd}
+
+/* ---------- overlays ---------- */
+#pp-root .pp-ovl{
+  position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center;padding:16px;
+  background:rgba(3,4,12,.82);backdrop-filter:blur(2px);
+}
+#pp-root .pp-ovl.on{display:flex}
+#pp-root .pp-box{
+  width:min(640px,100%);max-height:100%;overflow:auto;text-align:center;padding:28px 24px;
+  background:var(--panel);border:2px solid var(--cyan);border-radius:8px;box-shadow:0 0 30px rgba(54,243,255,.4);
+}
+#pp-root .pp-logo-plate{display:inline-block;background:#d3d5d3;border-radius:8px;padding:6px 10px;margin-bottom:16px}
+#pp-root .pp-logo-plate img{display:block;width:150px;height:auto}
+#pp-root .pp-title{
+  font-family:var(--pix);font-size:clamp(22px,5vw,40px);line-height:1.25;color:var(--cyan);
+  text-shadow:0 0 6px var(--cyan),0 0 22px rgba(54,243,255,.7),4px 4px 0 var(--mag);margin-bottom:10px;
+}
+#pp-root .pp-sub{font-family:var(--pix);font-size:9px;color:var(--mag);margin-bottom:18px;line-height:1.7}
+#pp-root .pp-sprites{display:flex;justify-content:center;gap:18px;margin-bottom:18px}
+#pp-root .pp-sprites svg{height:26px;width:auto}
+#pp-root .pp-how{text-align:left;font-size:14px;line-height:1.5;color:#cfd5f2;margin:0 auto 20px;max-width:470px;display:grid;gap:7px;list-style:none;counter-reset:s}
+#pp-root .pp-how li{counter-increment:s;display:flex;gap:10px}
+#pp-root .pp-how li::before{content:counter(s);font-family:var(--pix);font-size:9px;color:#05060f;background:var(--yellow);min-width:20px;height:20px;display:grid;place-items:center;margin-top:1px}
+#pp-root .pp-startbtns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+#pp-root .pp-big{
+  padding:15px 18px;border-radius:5px;font-family:var(--pix);font-size:11px;border:0;
+  background:var(--green);color:#05060f;box-shadow:0 0 16px rgba(77,255,136,.6),inset 0 -4px 0 rgba(0,0,0,.25);
+}
+#pp-root .pp-big.alt{background:transparent;color:var(--cyan);border:2px solid var(--cyan);box-shadow:0 0 12px rgba(54,243,255,.35)}
+#pp-root .pp-big small{display:block;font-size:7px;margin-top:6px;opacity:.75}
+#pp-root .pp-press{margin-top:18px;font-family:var(--pix);font-size:8px;color:var(--dim)}
+
+#pp-root .pp-wave{background:transparent;border:0;box-shadow:none}
+#pp-root .pp-wave .n{font-family:var(--pix);font-size:clamp(28px,7vw,54px);color:var(--yellow);text-shadow:0 0 18px var(--yellow),4px 4px 0 var(--mag)}
+#pp-root .pp-wave .nm{font-family:var(--pix);font-size:13px;color:var(--cyan);margin:18px 0 12px;text-shadow:0 0 8px var(--cyan)}
+#pp-root .pp-wave p{font-size:15px;color:#cfd5f2}
+
+#pp-root .pp-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:18px 0}
+#pp-root .pp-stats div{border:1px solid rgba(54,243,255,.4);border-radius:4px;padding:10px 6px}
+#pp-root .pp-stats span{display:block;font-family:var(--pix);font-size:7px;color:var(--mag);margin-bottom:8px}
+#pp-root .pp-stats b{font-family:var(--pix);font-size:14px;font-weight:400}
+#pp-root .pp-missed{text-align:left;margin:4px 0 18px}
+#pp-root .pp-missed h3{font-family:var(--pix);font-size:9px;color:var(--red);margin-bottom:10px;font-weight:400}
+#pp-root .pp-missed .row{display:flex;align-items:center;gap:12px;padding:8px;border:1px solid rgba(255,77,106,.35);border-radius:4px;margin-bottom:8px}
+#pp-root .pp-missed img{width:56px;height:56px;object-fit:cover;border-radius:3px}
+#pp-root .pp-missed .t{flex:1;font-size:13px;line-height:1.35}
+#pp-root .pp-missed .t small{display:block;color:var(--dim)}
+#pp-root .pp-perfect{font-family:var(--pix);font-size:9px;color:var(--green);line-height:1.7;margin-bottom:18px}
+
+/* ---------- achievement toast (Rad-Lad marker animation) ---------- */
+#pp-root .pp-ach-wrap{position:absolute;top:70px;right:14px;z-index:40;width:min(440px,calc(100% - 28px));display:none}
+#pp-root .pp-ach-wrap.on{display:block}
+#pp-root .pp-ach{
+  position:relative;background:linear-gradient(135deg,#1a1a1a 0%,#2a2a2a 100%);
+  border-left:5px solid #4ade80;border-radius:8px;padding:16px 18px;
+  display:flex;align-items:center;gap:16px;box-shadow:0 10px 30px rgba(0,0,0,.5);
+  opacity:0;transform:translateX(90px);
+}
+#pp-root .pp-ach-logo{width:40px;height:40px;object-fit:contain;flex-shrink:0;border-radius:4px;background:#d3d5d3;padding:3px;opacity:0}
+#pp-root .pp-ach-marker{
+  width:52px;height:52px;flex-shrink:0;position:relative;border-radius:10px;
+  background:linear-gradient(145deg,#13203a,#05060f);border:2px solid #4ade80;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 12px rgba(74,222,128,.45);
+  opacity:0;transform:translateY(-70px) scale(1.7) rotate(-12deg);
+}
+#pp-root .pp-ach-marker svg{width:40px;height:40px}
+#pp-root .pp-ach-marker::before{
+  content:'';position:absolute;inset:-8px;border-radius:14px;
+  background:radial-gradient(circle,rgba(74,222,128,.5) 0%,transparent 70%);opacity:0;
+}
+#pp-root .pp-ach-text{flex:1;min-width:0;opacity:0;transform:translateY(8px)}
+#pp-root .pp-ach-label{font-size:11px;font-weight:600;letter-spacing:1.3px;color:#4ade80;text-transform:uppercase;margin-bottom:3px}
+#pp-root .pp-ach-title{font-size:19px;font-weight:700;color:#f8fafc;line-height:1.15}
+#pp-root .pp-ach-sub{font-size:12px;color:#94a3b8;margin-top:3px}
+#pp-root .pp-ach-share{
+  margin-top:10px;text-align:center;font-size:13.5px;color:#94a3b8;background:rgba(5,6,15,.85);
+  padding:6px 10px;border-radius:6px;opacity:0;transform:translateY(10px);
+}
+#pp-root .pp-ach-share strong{color:#4ade80}
+#pp-root .pp-ach-btns{position:absolute;top:6px;right:6px;display:flex;gap:4px;opacity:0;transition:opacity .25s}
+#pp-root .pp-ach:hover .pp-ach-btns,#pp-root .pp-ach:focus-within .pp-ach-btns{opacity:1}
+#pp-root .pp-ach-btns button{background:rgba(255,255,255,.07);border:0;color:#94a3b8;font-size:11px;padding:4px 9px;border-radius:4px}
+#pp-root .pp-ach-btns button:hover{background:rgba(255,255,255,.14);color:#e2e8f0}
+#pp-root .pp-ach-wrap.is-playing .pp-ach{animation:pp-slide .7s cubic-bezier(.22,1,.36,1) .2s forwards}
+#pp-root .pp-ach-wrap.is-playing .pp-ach-logo{animation:pp-fade .5s ease .9s forwards}
+#pp-root .pp-ach-wrap.is-playing .pp-ach-marker{animation:pp-stamp .85s cubic-bezier(.34,1.4,.64,1) .55s forwards}
+#pp-root .pp-ach-wrap.is-playing .pp-ach-marker::before{animation:pp-glow .6s ease 1.15s forwards}
+#pp-root .pp-ach-wrap.is-playing .pp-ach-text{animation:pp-textin .5s ease 1.25s forwards}
+#pp-root .pp-ach-wrap.is-playing .pp-ach-share{animation:pp-up .55s ease 1.7s forwards}
+@keyframes pp-slide{to{opacity:1;transform:translateX(0)}}
+@keyframes pp-fade{to{opacity:1}}
+@keyframes pp-textin{to{opacity:1;transform:translateY(0)}}
+@keyframes pp-up{to{opacity:1;transform:translateY(0)}}
+@keyframes pp-stamp{
+  0%{opacity:0;transform:translateY(-70px) scale(1.7) rotate(-12deg)}
+  55%{opacity:1;transform:translateY(10px) scale(.92) rotate(4deg)}
+  75%{transform:translateY(-5px) scale(1.06) rotate(-2deg)}
+  100%{opacity:1;transform:translateY(0) scale(1) rotate(0)}
+}
+@keyframes pp-glow{0%{opacity:0;transform:scale(.6)}40%{opacity:1;transform:scale(1.1)}100%{opacity:0;transform:scale(1.4)}}
+
+#pp-root .pp-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+@media (max-width:900px){
+  #pp-root{height:auto;min-height:100vh;overflow:visible}
+  #pp-root .pp-main{grid-template-columns:1fr}
+  #pp-root .pp-stage{flex:none;height:min(96vw,620px)}
+  #pp-root .pp-panel{overflow:visible}
+  #pp-root .pp-arcade{height:96px}
+  #pp-root .pp-hint{margin-left:0;width:100%}
+  #pp-root .pp-ach-wrap{position:fixed;top:12px}
+}
+@media (max-width:520px){
+  #pp-root .pp-hud{gap:8px;padding:8px 10px}
+  #pp-root .pp-score{gap:10px;width:100%;justify-content:space-between;order:3}
+  #pp-root .pp-cell output{font-size:10px}
+  #pp-root .pp-main{padding:10px 8px}
+}
+@media (prefers-reduced-motion:reduce){
+  #pp-root .pp-ach-wrap.is-playing .pp-ach,#pp-root .pp-ach-wrap.is-playing .pp-ach-logo,
+  #pp-root .pp-ach-wrap.is-playing .pp-ach-marker,#pp-root .pp-ach-wrap.is-playing .pp-ach-text,
+  #pp-root .pp-ach-wrap.is-playing .pp-ach-share{animation-duration:.01s;animation-delay:0s}
+  #pp-root .pp-blink{animation:none}
+}
+</style>
+</head>
+<body>
+<div id="pp-root">
+  <canvas class="pp-stars" id="ppStars" aria-hidden="true"></canvas>
+
+  <header class="pp-hud">
+    <div class="pp-brand"><img id="ppLogoMark" alt="Rad-Lad"><b>PNEUMO PATROL</b></div>
+    <div class="pp-score" aria-live="polite">
+      <div class="pp-cell"><span>SCORE</span><output id="ppScore">000000</output></div>
+      <div class="pp-cell"><span>HI-SCORE</span><output id="ppHi">000000</output></div>
+      <div class="pp-cell"><span>WAVE</span><output id="ppWave">-</output></div>
+      <div class="pp-cell"><span>CASE</span><output id="ppCase">-</output></div>
+      <div class="pp-cell" id="ppStreakCell"><span>STREAK</span><output id="ppStreak">x0</output></div>
+    </div>
+    <div class="pp-hudbtns">
+      <button class="pp-chip" id="ppSound" aria-pressed="true" title="Sound (S)">SND ON</button>
+      <button class="pp-chip" id="ppMenu" title="Back to title">MENU</button>
+    </div>
+  </header>
+
+  <div class="pp-arcade"><canvas id="ppArcade" aria-hidden="true"></canvas></div>
+
+  <main class="pp-main">
+    <section class="pp-viewer" id="ppViewer" aria-label="Chest X-ray viewer">
+      <div class="pp-tools">
+        <button class="pp-tool" id="ppZoomOut" title="Zoom out (-)" aria-label="Zoom out">&minus;</button>
+        <span class="pp-zoomlvl" id="ppZoomLvl">100%</span>
+        <button class="pp-tool" id="ppZoomIn" title="Zoom in (+)" aria-label="Zoom in">+</button>
+        <button class="pp-tool" id="ppFit" title="Fit image (0)">FIT</button>
+        <button class="pp-tool" id="ppInvert" aria-pressed="false" title="Invert greyscale (I)">INV</button>
+        <button class="pp-tool" id="ppFull" title="Fullscreen (F)">FULL</button>
+        <span class="pp-hint" id="ppHint">Scroll or pinch to zoom &middot; drag to pan</span>
+      </div>
+      <div class="pp-timer" id="ppTimer"><i id="ppTimerBar"></i><b id="ppTimerTxt"></b></div>
+      <div class="pp-stage" id="ppStage">
+        <canvas id="ppImg"></canvas>
+        <div class="pp-static on" id="ppStatic">
+          <canvas id="ppNoise" width="160" height="120" style="position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated"></canvas>
+          <p id="ppStaticTxt">STANDING BY<br><small>Start a patrol to receive cases</small></p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="pp-panel">
+      <div class="pp-card" id="ppAsk">
+        <h2>YOUR CALL, CADET</h2>
+        <div class="pp-casehead" id="ppCaseHead">Inspect the radiograph, then classify it.</div>
+        <div class="pp-choices" role="group" aria-label="Classification">
+          <button class="pp-choice" id="ppNo" aria-pressed="false" disabled><span class="dot"></span>No pneumothorax<span class="k">N</span></button>
+          <button class="pp-choice ptx" id="ppYes" aria-pressed="false" disabled><span class="dot"></span>Pneumothorax<span class="k">P</span></button>
+        </div>
+        <div class="pp-markinfo" id="ppMarkInfo">
+          Click the image to mark the pneumothorax. <span id="ppMarkCount">0 / 3 markers</span>
+          <small>Click a marker again to remove it. Bilateral? Mark both sides.</small>
+        </div>
+        <button class="pp-submit" id="ppSubmit" disabled>SUBMIT</button>
+      </div>
+
+      <div class="pp-card" id="ppResult" hidden>
+        <div class="pp-verdict" id="ppVerdict"></div>
+        <div class="pp-truth" id="ppTruth"></div>
+        <div class="pp-locmsg" id="ppLocMsg" hidden></div>
+        <table class="pp-pts" id="ppPts"></table>
+        <div class="pp-explain" id="ppExplain"></div>
+        <div class="pp-rbtns">
+          <button class="pp-tool" id="ppOvBtn" aria-pressed="true" title="Toggle answer overlay (O)">OVERLAY</button>
+          <button class="pp-next" id="ppNext">NEXT CASE &#9654;</button>
+        </div>
+      </div>
+
+      <div class="pp-card pp-badgecard locked" id="ppBadgeCard">
+        <div class="pp-badge" id="ppBadge"></div>
+        <div class="pp-badgeinfo">
+          <div class="lbl" id="ppBadgeLbl">ACHIEVEMENT &middot; LOCKED</div>
+          <div class="nm">No Lung Left Behind</div>
+          <p id="ppBadgeReq">Correctly classify every opening case.</p>
+          <div class="pp-pips" id="ppPips"></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="pp-foot" id="ppFoot"></footer>
+
+  <!-- title screen -->
+  <div class="pp-ovl on" id="ppTitle">
+    <div class="pp-box">
+      <div class="pp-logo-plate"><img id="ppLogoFull" alt="Rad-Lad"></div>
+      <h1 class="pp-title">PNEUMO<br>PATROL</h1>
+      <div class="pp-sub">A RAD-LAD CHEST X-RAY ARCADE</div>
+      <div class="pp-sprites" id="ppTitleSprites"></div>
+      <ol class="pp-how">
+        <li><span>An incoming spacecraft beams down a chest X-ray. The arcade pauses while you inspect it.</span></li>
+        <li><span>Choose <b>No pneumothorax</b> or <b>Pneumothorax</b>. If pneumothorax, mark where it is on the image.</span></li>
+        <li><span>Submit to reveal the answer. Correct calls score points, accurate marks earn a bonus, and consecutive hits build a streak.</span></li>
+      </ol>
+      <div class="pp-startbtns">
+        <button class="pp-big" id="ppStart">START PATROL<small>Speed bonus on</small></button>
+        <button class="pp-big alt" id="ppPractice">PRACTICE<small>Untimed</small></button>
+      </div>
+      <div class="pp-press">Keys: N / P choose &middot; Enter submit &middot; +/&minus; zoom &middot; F fullscreen</div>
+    </div>
+  </div>
+
+  <!-- wave banner -->
+  <div class="pp-ovl" id="ppWaveOvl" aria-live="assertive">
+    <div class="pp-box pp-wave"><div class="n" id="ppWaveN"></div><div class="nm" id="ppWaveName"></div><p id="ppWaveBlurb"></p></div>
+  </div>
+
+  <!-- debrief -->
+  <div class="pp-ovl" id="ppEnd">
+    <div class="pp-box">
+      <h1 class="pp-title" style="font-size:clamp(18px,4vw,28px)">PATROL<br>COMPLETE</h1>
+      <div class="pp-stats" id="ppStats"></div>
+      <div id="ppMissed"></div>
+      <div class="pp-startbtns">
+        <button class="pp-big" id="ppAgain">PLAY AGAIN</button>
+        <button class="pp-big alt" id="ppToMenu">MAIN MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- achievement toast -->
+  <div class="pp-ach-wrap" id="ppAch" role="status">
+    <div class="pp-ach">
+      <img class="pp-ach-logo" id="ppAchLogo" alt="Rad-Lad">
+      <div class="pp-ach-marker" id="ppAchMarker"></div>
+      <div class="pp-ach-text">
+        <div class="pp-ach-label">Achievement Unlocked</div>
+        <div class="pp-ach-title">No Lung Left Behind</div>
+        <div class="pp-ach-sub" id="ppAchSub">Pneumo Patrol &middot; every opening case correct</div>
+      </div>
+      <div class="pp-ach-btns"><button id="ppAchReplay">Replay</button><button id="ppAchClose" aria-label="Close">&times;</button></div>
+    </div>
+    <div class="pp-ach-share">Share your <strong>No Lung Left Behind</strong> achievement below!</div>
+  </div>
+
+  <div class="pp-sr" id="ppLive" aria-live="polite"></div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var CASES  = /*__CASES__*/[];
+var WAVES  = /*__WAVES__*/[];
+var SOURCE = /*__SOURCE__*/{};
+var ASSETS = /*__ASSETS__*/{};
+var GRID   = /*__GRID__*/0;
+
+var $ = function(id){ return document.getElementById(id); };
+var root = $("pp-root");
+var REDUCED = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------- storage (per-viewer conveniences only) ---------- */
+function load(k, d){ try{ var v = localStorage.getItem("pp_"+k); return v===null ? d : JSON.parse(v); }catch(e){ return d; } }
+function save(k, v){ try{ localStorage.setItem("pp_"+k, JSON.stringify(v)); }catch(e){} }
+
+/* ---------- pixel art ---------- */
+var PAL = { c:"#36f3ff", w:"#ffffff", y:"#ffe45c", o:"#ff9a3c", l:"#bfc6e0", p:"#ff6f91", q:"#d9436a", h:"#ffb3c6",
+            g:"#4dff88", m:"#ff3df2", r:"#ff4d6a", k:"#05060f", b:"#2a7bff" };
+var SPR = {
+  ship:[
+    "......c......",
+    ".....cwc.....",
+    ".....ccc.....",
+    "...b.ccc.b...",
+    ".ccccccccccc.",
+    "ccccccccccccc",
+    "cc.ccccccc.cc",
+    "c...y...y...c"],
+  crabA:[
+    "..g.....g..",
+    "...g...g...",
+    "..ggggggg..",
+    ".gg.ggg.gg.",
+    "ggggggggggg",
+    "g.ggggggg.g",
+    "g.g.....g.g",
+    "...gg.gg..."],
+  crabB:[
+    "..g.....g..",
+    "g..g...g..g",
+    "g.ggggggg.g",
+    "ggg.ggg.ggg",
+    "ggggggggggg",
+    ".ggggggggg.",
+    "..g.....g..",
+    ".g.......g."],
+  squidA:[
+    "...mm...",
+    "..mmmm..",
+    ".mmmmmm.",
+    "mm.mm.mm",
+    "mmmmmmmm",
+    "..m..m..",
+    ".m.mm.m.",
+    "m.m..m.m"],
+  squidB:[
+    "...mm...",
+    "..mmmm..",
+    ".mmmmmm.",
+    "mm.mm.mm",
+    "mmmmmmmm",
+    ".m.mm.m.",
+    "m......m",
+    ".m....m."],
+  mother:[
+    ".....rrrrrr.....",
+    "...rrrrrrrrrr...",
+    "..rrrrrrrrrrrr..",
+    ".rr.rr.rr.rr.rr.",
+    "rrrrrrrrrrrrrrrr",
+    "..rrr..rr..rrr..",
+    "...r........r..."],
+  capsule:[
+    ".yyyy.",
+    "ywwwwy",
+    "ywllwy",
+    "ywllwy",
+    "ywwwwy",
+    ".yyyy."],
+  badge:[
+    "..........cc..........",
+    ".........cccc.........",
+    ".........cwwc.........",
+    "........cccccc........",
+    "......cccccccccc......",
+    ".....cc.cccccc.cc.....",
+    ".....c..y.yy.y..c.....",
+    ".........o..o.........",
+    "..........ll..........",
+    "..........ll..........",
+    "....ppp...ll...ppp....",
+    "...phhpp.l..l.pphhp...",
+    "..phhppppl..lpppphhp..",
+    "..pphpppp....pppphpp..",
+    ".pppppppp....pppppppp.",
+    ".pppppppp....pppppppp.",
+    ".pppppppq....qppppppp.",
+    ".ppppppppq..qpppppppp.",
+    "..qpppppqq..qqpppppq..",
+    "...qqqqqq....qqqqqq..."]
+};
+function pixelSVG(map, title){
+  var w = 0, rects = "";
+  map.forEach(function(row, y){
+    w = Math.max(w, row.length);
+    for (var x = 0; x < row.length; x++){
+      var ch = row[x];
+      if (ch !== "." && PAL[ch]) rects += '<rect x="'+x+'" y="'+y+'" width="1.02" height="1.02" fill="'+PAL[ch]+'"/>';
+    }
+  });
+  return '<svg viewBox="0 0 '+w+' '+map.length+'" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg"'+
+         (title ? ' role="img" aria-label="'+title+'"' : ' aria-hidden="true"')+'>'+rects+'</svg>';
+}
+function spriteCanvas(map){
+  var w = Math.max.apply(null, map.map(function(r){ return r.length; })), h = map.length;
+  var c = document.createElement("canvas"); c.width = w; c.height = h;
+  var g = c.getContext("2d");
+  map.forEach(function(row, y){
+    for (var x = 0; x < row.length; x++){ var ch=row[x]; if (ch!=="." && PAL[ch]){ g.fillStyle = PAL[ch]; g.fillRect(x,y,1,1); } }
+  });
+  return c;
+}
+var SC = {}; Object.keys(SPR).forEach(function(k){ SC[k] = spriteCanvas(SPR[k]); });
+
+/* ---------- sound (tiny WebAudio chip synth) ---------- */
+var SFX = {
+  on: load("sound", true), ctx: null,
+  ensure: function(){
+    if (!this.ctx){ try{ this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ return null; } }
+    if (this.ctx.state === "suspended") this.ctx.resume();
+    return this.ctx;
+  },
+  tone: function(f0, f1, dur, type, vol, delay){
+    var a = this.ctx, t = a.currentTime + (delay||0);
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = type || "square"; o.frequency.setValueAtTime(f0, t);
+    if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(20,f1), t+dur);
+    g.gain.setValueAtTime(vol||0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+dur+0.02);
+  },
+  noise: function(dur, vol, delay){
+    var a = this.ctx, t = a.currentTime + (delay||0);
+    var n = Math.floor(a.sampleRate*dur), buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
+    for (var i=0;i<n;i++) d[i] = (Math.random()*2-1) * (1 - i/n);
+    var s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    s.buffer = buf; f.type = "lowpass"; f.frequency.setValueAtTime(2400, t); f.frequency.exponentialRampToValueAtTime(120, t+dur);
+    g.gain.setValueAtTime(vol||0.25, t);
+    s.connect(f); f.connect(g); g.connect(a.destination); s.start(t);
+  },
+  play: function(name){
+    if (!this.on || !this.ensure()) return;
+    var T = this.tone.bind(this);
+    switch(name){
+      case "select":   T(660,660,.06,"square",.05); break;
+      case "mark":     T(880,1320,.08,"square",.05); break;
+      case "unmark":   T(520,300,.08,"square",.05); break;
+      case "submit":   T(440,880,.12,"square",.05); break;
+      case "laser":    T(1600,180,.18,"square",.05); break;
+      case "boom":     this.noise(.55,.3); T(140,40,.4,"triangle",.12); break;
+      case "wrong":    T(330,120,.45,"sawtooth",.05); T(220,70,.5,"square",.04,.08); break;
+      case "incoming": [0,.12,.24,.36].forEach(function(d,i){ T(i%2?520:390, i%2?520:390, .1, "triangle", .07, d); }); break;
+      case "beam":     T(200,1200,.4,"sine",.05); break;
+      case "wave":     [523,659,784,1047].forEach(function(f,i){ T(f,f,.12,"square",.05,i*.1); }); break;
+      case "ach":      [523,659,784,1047,784,1047,1319].forEach(function(f,i){ T(f,f,.14,"square",.05,i*.09); }); break;
+      case "tick":     T(1200,1200,.03,"square",.03); break;
+    }
+  }
+};
+
+/* ---------- state ---------- */
+var S = {
+  mode: "patrol", review: false, phase: "title",   // title | incoming | inspect | reveal | between | end
+  w: 0, i: 0, score: 0, streak: 0, bestStreak: 0,
+  hi: load("hi", 0), unlocked: load("unlocked", false),
+  choice: null, markers: [], results: [], t0: 0, elapsed: 0,
+  invert: false, showOv: true
+};
+var waves = WAVES.map(function(w, wi){ return { meta: w, cases: CASES.filter(function(c){ return c.wave === wi; }) }; })
+                 .filter(function(w){ return w.cases.length; });
+var TOTAL = waves.reduce(function(n, w){ return n + w.cases.length; }, 0);
+var SPEED_WINDOW = 60;   // seconds over which the speed bonus decays
+
+function cur(){ return S.review ? S.reviewCase : waves[S.w].cases[S.i]; }
+function pad(n, l){ n = String(n); while (n.length < l) n = "0"+n; return n; }
+
+/* ---------- starfield ---------- */
+var stars = (function(){
+  var cv = $("ppStars"), g = cv.getContext("2d"), list = [], W=0, H=0, dpr=1;
+  function size(){
+    dpr = Math.min(2, window.devicePixelRatio||1);
+    W = root.clientWidth; H = root.clientHeight;
+    cv.width = W*dpr; cv.height = H*dpr;
+    var n = Math.round(W*H/5000); list = [];
+    for (var i=0;i<n;i++) list.push({x:Math.random()*W, y:Math.random()*H, z:Math.random()*0.9+0.1, tw:Math.random()*6});
+  }
+  function draw(dt, speed){
+    g.setTransform(dpr,0,0,dpr,0,0);
+    g.fillStyle = "#05060f"; g.fillRect(0,0,W,H);
+    for (var i=0;i<list.length;i++){
+      var s = list[i];
+      s.y += s.z*s.z*speed*dt; if (s.y > H){ s.y = 0; s.x = Math.random()*W; }
+      s.tw += dt*2;
+      var a = 0.35 + 0.65*s.z*(0.75+0.25*Math.sin(s.tw));
+      g.fillStyle = s.z > 0.85 ? "rgba(54,243,255,"+a+")" : "rgba(220,228,255,"+a+")";
+      var sz = s.z > 0.7 ? 2 : 1;
+      g.fillRect(Math.round(s.x), Math.round(s.y), sz, sz);
+    }
+  }
+  return { size:size, draw:draw };
+})();
+
+/* ---------- arcade strip ---------- */
+var AR = (function(){
+  var cv = $("ppArcade"), g = cv.getContext("2d"), W=0, H=0, dpr=1, P=3;
+  var inv = [], fx = 0, dir = 1, stepT = 0, frame = 0;
+  var mother = null, ship = { x: 0, flash: 0 }, shots = [], parts = [], floats = [], capsule = null;
+  var lastW = 0, paused = false, msg = "", msgCol = "#36f3ff", shake = 0;
+  function size(){
+    dpr = Math.min(2, window.devicePixelRatio||1);
+    W = cv.clientWidth; H = cv.clientHeight; P = H < 110 ? 2 : 3;
+    cv.width = W*dpr; cv.height = H*dpr;
+    if (!ship.x || ship.x > W) ship.x = W/2;
+    if (inv.length && W !== lastW){
+      var alive = inv.map(function(v){ return v.alive; });
+      formation(inv.length); inv.forEach(function(v, i){ v.alive = alive[i]; });
+    }
+    lastW = W;
+  }
+  function formation(n){
+    inv = []; fx = 0; dir = 1;
+    var rows = 2, cols = Math.max(4, Math.min(11, Math.ceil(n/rows)));
+    var sp = 16*P;
+    var x0 = (W - (cols-1)*sp)/2;
+    for (var r=0;r<rows;r++) for (var c=0;c<cols && inv.length<n;c++)
+      inv.push({ x:x0 + c*sp, y: (r ? 26 : 13)*P + 2, kind: r ? "crab" : "squid", alive:true });
+  }
+  function boom(x, y, col, n){
+    for (var i=0;i<(n||24);i++){
+      var a = Math.random()*Math.PI*2, v = 40+Math.random()*140;
+      parts.push({ x:x, y:y, vx:Math.cos(a)*v, vy:Math.sin(a)*v, life:0.6+Math.random()*0.5, col: col || (Math.random()<.5?"#ffe45c":"#ff4d6a") });
+    }
+  }
+  function tween(obj, key, to, dur){
+    return new Promise(function(res){
+      var from = obj[key], t0 = performance.now();
+      if (REDUCED) dur = Math.min(dur, 120);
+      (function step(now){
+        var k = Math.min(1, (now - t0)/dur), e = 1 - Math.pow(1-k, 3);
+        obj[key] = from + (to-from)*e;
+        if (k < 1) requestAnimationFrame(step); else res();
+      })(t0);
+    });
+  }
+  function wait(ms){ return new Promise(function(r){ setTimeout(r, REDUCED ? Math.min(ms,150) : ms); }); }
+
+  function incoming(){
+    paused = false; msg = "INCOMING CASE"; msgCol = "#ffe45c";
+    mother = { x: W + 60, y: 3*P + 2, alive: true };
+    SFX.play("incoming");
+    return tween(mother, "x", W*0.5, 1100).then(function(){
+      SFX.play("beam");
+      capsule = { x: mother.x, y: mother.y + 7*P };
+      return tween(capsule, "y", H + 20, 650);
+    }).then(function(){ capsule = null; paused = true; msg = "PAUSED · INSPECTING"; msgCol = "#36f3ff"; });
+  }
+  function resolve(correct){
+    paused = false; msg = "";
+    if (!mother) return Promise.resolve();
+    if (correct){
+      return tween(ship, "x", mother.x, 380).then(function(){
+        SFX.play("laser");
+        var s = { x: ship.x, y: H - 9*P };
+        shots.push(s);
+        return tween(s, "y", mother.y + 4*P, 260).then(function(){
+          shots.splice(shots.indexOf(s), 1);
+          SFX.play("boom"); boom(mother.x, mother.y + 3*P, null, 36); mother = null; shake = 0.3;
+          var alive = inv.filter(function(v){ return v.alive; });
+          if (alive.length){ var v = alive[Math.floor(Math.random()*alive.length)]; v.alive = false; boom(v.x + fx, v.y + 4*P, v.kind==="crab" ? "#4dff88" : "#ff3df2", 14); }
+          return wait(500);
+        });
+      });
+    }
+    SFX.play("wrong"); ship.flash = 0.8; shake = 0.4;
+    msg = "TARGET ESCAPED"; msgCol = "#ff4d6a";
+    return tween(mother, "x", -80, 700).then(function(){ mother = null; return wait(200); });
+  }
+  function waveClear(){
+    msg = "WAVE CLEAR"; msgCol = "#4dff88"; SFX.play("wave");
+    inv.forEach(function(v){ if (v.alive){ v.alive = false; boom(v.x + fx, v.y + 4*P, "#4dff88", 10); } });
+    return wait(1100).then(function(){ msg = ""; });
+  }
+  function idle(){ paused = false; msg = ""; mother = null; capsule = null; }
+  function floatText(t, col){ floats.push({ t:t, x: ship.x, y: H - 12*P, life: 1.4, col: col || "#ffe45c" }); }
+  function setMsg(t, col){ msg = t; msgCol = col || "#36f3ff"; }
+
+  function update(dt){
+    if (!paused){
+      stepT += dt;
+      var step = 0.55;
+      if (stepT > step){
+        stepT = 0; frame ^= 1;
+        var minX = Infinity, maxX = -Infinity;
+        inv.forEach(function(v){ if (v.alive){ minX = Math.min(minX, v.x); maxX = Math.max(maxX, v.x); } });
+        if (maxX + fx + 4*P*dir + 14*P > W || minX + fx + 4*P*dir < 6) dir = -dir;
+        fx += 4*P*dir;
+      }
+    }
+    if (ship.flash > 0) ship.flash -= dt;
+    if (shake > 0) shake -= dt;
+    for (var i=parts.length-1;i>=0;i--){ var p = parts[i]; p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 120*dt; p.life -= dt; if (p.life <= 0) parts.splice(i,1); }
+    for (var j=floats.length-1;j>=0;j--){ var f = floats[j]; f.y -= 24*dt; f.life -= dt; if (f.life <= 0) floats.splice(j,1); }
+  }
+  function spr(name, x, y, alpha){
+    var c = SC[name]; g.globalAlpha = alpha == null ? 1 : alpha;
+    g.drawImage(c, Math.round(x - c.width*P/2), Math.round(y), c.width*P, c.height*P);
+    g.globalAlpha = 1;
+  }
+  function draw(){
+    g.setTransform(dpr,0,0,dpr,0,0);
+    g.clearRect(0,0,W,H);
+    g.fillStyle = "rgba(5,6,15,.55)"; g.fillRect(0,0,W,H);
+    if (shake > 0) g.translate((Math.random()-.5)*6*shake, (Math.random()-.5)*6*shake);
+    var dim = paused ? 0.35 : 1;
+    inv.forEach(function(v){
+      if (!v.alive) return;
+      var c = SC[v.kind + (frame ? "B" : "A")];
+      g.globalAlpha = dim; g.drawImage(c, Math.round(v.x + fx), v.y, c.width*P, c.height*P); g.globalAlpha = 1;
+    });
+    if (mother) spr("mother", mother.x, mother.y, paused ? 0.9 : 1);
+    if (capsule){
+      g.fillStyle = "rgba(255,228,92,.18)"; g.fillRect(capsule.x - 4*P, mother ? mother.y + 7*P : 0, 8*P, capsule.y - (mother ? mother.y + 7*P : 0));
+      spr("capsule", capsule.x, capsule.y);
+    }
+    shots.forEach(function(s){ g.fillStyle = "#4dff88"; g.shadowColor = "#4dff88"; g.shadowBlur = 8; g.fillRect(s.x - P/2, s.y, P, 4*P); g.shadowBlur = 0; });
+    spr("ship", ship.x, H - 8*P - 3, ship.flash > 0 && Math.floor(ship.flash*10)%2 ? 0.25 : 1);
+    parts.forEach(function(p){ g.globalAlpha = Math.max(0, p.life); g.fillStyle = p.col; g.fillRect(p.x, p.y, P, P); });
+    g.globalAlpha = 1;
+    g.textAlign = "center"; g.textBaseline = "middle";
+    floats.forEach(function(f){ g.globalAlpha = Math.min(1, f.life); g.font = "10px 'Press Start 2P', monospace"; g.fillStyle = f.col; g.fillText(f.t, f.x, f.y); });
+    g.globalAlpha = 1;
+    if (msg){
+      g.font = (P === 2 ? "9px" : "11px") + " 'Press Start 2P', monospace";
+      var tw = g.measureText(msg).width + 24, ty = H/2 + 6;
+      g.fillStyle = "rgba(5,6,15,.8)"; g.fillRect(W/2 - tw/2, ty - 13, tw, 26);
+      g.strokeStyle = msgCol; g.lineWidth = 1; g.strokeRect(W/2 - tw/2 + .5, ty - 12.5, tw - 1, 25);
+      g.fillStyle = msgCol; g.shadowColor = msgCol; g.shadowBlur = 8; g.fillText(msg, W/2, ty + 1); g.shadowBlur = 0;
+    }
+    g.setTransform(1,0,0,1,0,0);
+  }
+  return { size:size, formation:formation, incoming:incoming, resolve:resolve, waveClear:waveClear, idle:idle,
+           update:update, draw:draw, floatText:floatText, setMsg:setMsg, isPaused:function(){ return paused; } };
+})();
+
+/* ---------- viewer ---------- */
+var V = (function(){
+  var stage = $("ppStage"), cv = $("ppImg"), g = cv.getContext("2d");
+  var img = null, ov = null, hit = null, W=0, H=0, dpr=1;
+  var s = 1, x = 0, y = 0, fit = 1, revealA = 0, revealing = false;
+  var ptrs = {}, drag = null, pinch = null;
+
+  function size(){
+    dpr = Math.min(2, window.devicePixelRatio||1);
+    var nw = stage.clientWidth, nh = stage.clientHeight;
+    if (!nw || !nh) return;
+    var keep = img && W ? { cx:(W/2 - x)/s, cy:(H/2 - y)/s, rel: s/fit } : null;
+    W = nw; H = nh; cv.width = W*dpr; cv.height = H*dpr;
+    if (img){
+      fit = Math.min(W/img.width, H/img.height);
+      if (keep){ s = fit*keep.rel; x = W/2 - keep.cx*s; y = H/2 - keep.cy*s; clamp(); } else reset();
+    }
+    draw();
+  }
+  function reset(){ if (!img) return; s = fit; x = (W - img.width*s)/2; y = (H - img.height*s)/2; zoomLbl(); draw(); }
+  function clamp(){
+    var iw = img.width*s, ih = img.height*s, m = 60;
+    x = iw <= W ? (W - iw)/2 : Math.min(m, Math.max(W - iw - m, x));
+    y = ih <= H ? (H - ih)/2 : Math.min(m, Math.max(H - ih - m, y));
+  }
+  function zoomAt(f, cx, cy){
+    if (!img) return;
+    var ns = Math.max(fit, Math.min(fit*8, s*f));
+    x = cx - (cx - x)*(ns/s); y = cy - (cy - y)*(ns/s); s = ns; clamp(); zoomLbl(); draw();
+  }
+  function zoomLbl(){ $("ppZoomLvl").textContent = Math.round(100*s/fit) + "%"; }
+  function loadCase(c){
+    return new Promise(function(res){
+      var a = new Image(), b = c.overlay ? new Image() : null, n = b ? 2 : 1;
+      function done(){ if (--n === 0){ img = a; ov = b; hit = c.hit ? decodeHit(c.hit) : null; revealA = 0; size(); reset(); res(); } }
+      a.onload = done; a.src = c.xray;
+      if (b){ b.onload = done; b.src = c.overlay; }
+    });
+  }
+  function decodeHit(b64){ var s = atob(b64), u = new Uint8Array(s.length); for (var i=0;i<s.length;i++) u[i] = s.charCodeAt(i); return u; }
+  function isHit(nx, ny){
+    if (!hit) return false;
+    var gx = Math.min(GRID-1, Math.max(0, Math.floor(nx*GRID))), gy = Math.min(GRID-1, Math.max(0, Math.floor(ny*GRID)));
+    var i = gy*GRID + gx; return !!(hit[i>>3] & (0x80 >> (i&7)));
+  }
+  function reveal(){
+    revealing = true; revealA = 0;
+    var t0 = performance.now();
+    (function step(now){
+      revealA = Math.min(1, (now - t0)/(REDUCED ? 1 : 700)); draw();
+      if (revealA < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+  function hideReveal(){ revealing = false; revealA = 0; draw(); }
+  function toScreen(m){ return { x: m.x*img.width*s + x, y: m.y*img.height*s + y }; }
+
+  function drawMarker(m, n){
+    var p = toScreen(m), r = 15, col = "#36f3ff";
+    if (S.phase === "reveal" && m.hit != null) col = m.hit ? "#4dff88" : "#ff4d6a";
+    g.save();
+    g.shadowColor = col; g.shadowBlur = 10; g.strokeStyle = col; g.lineWidth = 2.5;
+    g.beginPath(); g.arc(p.x, p.y, r, 0, Math.PI*2); g.stroke();
+    g.beginPath();
+    g.moveTo(p.x - r - 7, p.y); g.lineTo(p.x - r + 5, p.y);
+    g.moveTo(p.x + r - 5, p.y); g.lineTo(p.x + r + 7, p.y);
+    g.moveTo(p.x, p.y - r - 7); g.lineTo(p.x, p.y - r + 5);
+    g.moveTo(p.x, p.y + r - 5); g.lineTo(p.x, p.y + r + 7);
+    g.stroke();
+    g.fillStyle = col; g.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
+    g.shadowBlur = 0;
+    g.font = "9px 'Press Start 2P', monospace"; g.textAlign = "left"; g.textBaseline = "bottom";
+    var label = S.phase === "reveal" && m.hit != null ? (m.hit ? "HIT" : "MISS") : String(n);
+    g.fillStyle = "rgba(5,6,15,.8)"; var tw = g.measureText(label).width;
+    g.fillRect(p.x + r + 2, p.y - r - 12, tw + 8, 14);
+    g.fillStyle = col; g.fillText(label, p.x + r + 6, p.y - r + 1);
+    g.restore();
+  }
+  function draw(){
+    g.setTransform(dpr,0,0,dpr,0,0);
+    g.fillStyle = "#000"; g.fillRect(0,0,W,H);
+    if (!img) return;
+    g.save();
+    g.translate(x, y); g.scale(s, s);
+    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+    if (S.invert) g.filter = "invert(1)";
+    g.drawImage(img, 0, 0);
+    g.filter = "none";
+    if (revealing && ov && S.showOv){ g.globalAlpha = revealA; g.drawImage(ov, 0, 0); g.globalAlpha = 1; }
+    g.restore();
+    S.markers.forEach(function(m, i){ drawMarker(m, i+1); });
+    if (revealing && S.showOv && S.phase === "reveal"){
+      var c = cur(), txt = c.ptx ? "PNEUMOTHORAX" : "NO PNEUMOTHORAX", col = c.ptx ? "#ffe45c" : "#4dff88";
+      g.globalAlpha = revealA;
+      g.font = "10px 'Press Start 2P', monospace"; g.textAlign = "left"; g.textBaseline = "top";
+      var tw = g.measureText(txt).width;
+      g.fillStyle = "rgba(5,6,15,.85)"; g.fillRect(10, 10, tw + 20, 26);
+      g.strokeStyle = col; g.strokeRect(10.5, 10.5, tw + 19, 25);
+      g.fillStyle = col; g.fillText(txt, 20, 19);
+      g.globalAlpha = 1;
+    }
+  }
+  function canMark(){ return S.phase === "inspect" && S.choice === "ptx"; }
+  function local(e){ var r = stage.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  function clickAt(p){
+    if (!img || !canMark()) return;
+    for (var i=0;i<S.markers.length;i++){
+      var q = toScreen(S.markers[i]);
+      if (Math.hypot(q.x - p.x, q.y - p.y) < 20){ S.markers.splice(i,1); SFX.play("unmark"); Game.markersChanged(); draw(); return; }
+    }
+    var nx = (p.x - x)/(img.width*s), ny = (p.y - y)/(img.height*s);
+    if (nx < 0 || ny < 0 || nx > 1 || ny > 1) return;
+    if (S.markers.length >= 3){ Game.say("Maximum of three markers: click one to move it."); SFX.play("unmark"); return; }
+    S.markers.push({ x:nx, y:ny, hit:null }); SFX.play("mark"); Game.markersChanged(); draw();
+  }
+  stage.addEventListener("pointerdown", function(e){
+    if (!img) return;
+    stage.setPointerCapture(e.pointerId);
+    ptrs[e.pointerId] = local(e);
+    var ids = Object.keys(ptrs);
+    if (ids.length === 1){ drag = { start: local(e), x0: x, y0: y, moved: false }; pinch = null; }
+    else if (ids.length === 2){
+      var a = ptrs[ids[0]], b = ptrs[ids[1]];
+      pinch = { d: Math.hypot(a.x-b.x, a.y-b.y), s0: s }; drag = null;
+    }
+  });
+  stage.addEventListener("pointermove", function(e){
+    if (!(e.pointerId in ptrs)) return;
+    ptrs[e.pointerId] = local(e);
+    var ids = Object.keys(ptrs);
+    if (pinch && ids.length === 2){
+      var a = ptrs[ids[0]], b = ptrs[ids[1]], d = Math.hypot(a.x-b.x, a.y-b.y);
+      zoomAt((pinch.s0*d/pinch.d)/s, (a.x+b.x)/2, (a.y+b.y)/2);
+    } else if (drag){
+      var p = ptrs[e.pointerId], dx = p.x - drag.start.x, dy = p.y - drag.start.y;
+      if (!drag.moved && Math.hypot(dx, dy) > 6){ drag.moved = true; stage.classList.add("panning"); }
+      if (drag.moved){ x = drag.x0 + dx; y = drag.y0 + dy; clamp(); draw(); }
+    }
+  });
+  function up(e){
+    if (!(e.pointerId in ptrs)) return;
+    var p = ptrs[e.pointerId];
+    delete ptrs[e.pointerId];
+    if (drag && !drag.moved && e.type === "pointerup") clickAt(p);
+    if (!Object.keys(ptrs).length){ drag = null; pinch = null; stage.classList.remove("panning"); }
+  }
+  stage.addEventListener("pointerup", up);
+  stage.addEventListener("pointercancel", up);
+  stage.addEventListener("wheel", function(e){
+    if (!img) return;
+    e.preventDefault();
+    var p = local(e); zoomAt(Math.exp(-e.deltaY*0.0015), p.x, p.y);
+  }, { passive:false });
+
+  return { size:size, reset:reset, zoomAt:zoomAt, loadCase:loadCase, isHit:isHit, reveal:reveal, hideReveal:hideReveal, draw:draw,
+           center:function(){ return { x: W/2, y: H/2 }; }, setMarking:function(on){ stage.classList.toggle("marking", on); },
+           clear:function(){ img = null; ov = null; hit = null; revealing = false; draw(); } };
+})();
+
+/* ---------- static / incoming-transmission screen ---------- */
+var Static = (function(){
+  var el = $("ppStatic"), cv = $("ppNoise"), g = cv.getContext("2d"), id = g.createImageData(160, 120), on = true;
+  function draw(){
+    if (!on) return;
+    var d = id.data;
+    for (var i=0;i<d.length;i+=4){ var v = Math.random()*255|0; d[i]=v*.6; d[i+1]=v; d[i+2]=v*.8; d[i+3]=255; }
+    g.putImageData(id, 0, 0);
+  }
+  return {
+    show: function(html){ $("ppStaticTxt").innerHTML = html; el.classList.add("on"); on = true; },
+    hide: function(){ el.classList.remove("on"); on = false; },
+    draw: draw
+  };
+})();
+
+/* ---------- game flow ---------- */
+var Game = (function(){
+  var timerOn = false;
+
+  function hud(){
+    $("ppScore").textContent = pad(S.score, 6);
+    $("ppHi").textContent = pad(Math.max(S.hi, S.mode === "patrol" ? S.score : 0), 6);
+    $("ppWave").textContent = S.review ? "REV" : (S.phase === "title" ? "-" : (S.w+1) + "/" + waves.length);
+    var done = S.review ? "-" : (waves.slice(0, S.w).reduce(function(n,w){ return n + w.cases.length; }, 0) + S.i + 1);
+    $("ppCase").textContent = S.phase === "title" || S.review ? "-" : done + "/" + TOTAL;
+    $("ppStreak").textContent = "x" + S.streak;
+    $("ppStreakCell").classList.toggle("hot", S.streak >= 3);
+  }
+  function badge(){
+    $("ppBadgeCard").classList.toggle("locked", !S.unlocked);
+    $("ppBadgeLbl").innerHTML = S.unlocked ? "ACHIEVEMENT &middot; UNLOCKED" : "ACHIEVEMENT &middot; LOCKED";
+    var pips = $("ppPips").children, op = S.results.filter(function(r){ return r.wave === 0; });
+    for (var i=0;i<pips.length;i++){
+      pips[i].className = op[i] ? (op[i].correct ? "ok" : "no") : "";
+    }
+  }
+  function say(t){ $("ppLive").textContent = t; }
+  function setChoiceUI(){
+    var ins = S.phase === "inspect";
+    $("ppNo").disabled = $("ppYes").disabled = !ins;
+    $("ppNo").setAttribute("aria-pressed", S.choice === "no");
+    $("ppYes").setAttribute("aria-pressed", S.choice === "ptx");
+    var marking = ins && S.choice === "ptx";
+    $("ppMarkInfo").classList.toggle("on", marking);
+    $("ppMarkCount").textContent = S.markers.length + " / 3 marker" + (S.markers.length === 1 ? "" : "s");
+    V.setMarking(marking);
+    var hint = $("ppHint");
+    hint.classList.toggle("mark", marking);
+    hint.innerHTML = marking ? "Click the image to mark the pneumothorax &middot; drag to pan"
+                             : "Scroll or pinch to zoom &middot; drag to pan";
+    $("ppSubmit").disabled = !ins || !S.choice || (S.choice === "ptx" && !S.markers.length);
+    $("ppSubmit").textContent = ins && S.choice === "ptx" && !S.markers.length ? "MARK THE IMAGE" : "SUBMIT";
+  }
+  function markersChanged(){ setChoiceUI(); }
+  function choose(v){
+    if (S.phase !== "inspect") return;
+    S.choice = v; if (v === "no") S.markers = [];
+    SFX.play("select"); setChoiceUI(); V.draw();
+    if (v === "ptx") say("Pneumothorax selected. Click the image to mark it.");
+  }
+
+  function showWave(){
+    var w = waves[S.w];
+    $("ppWaveN").textContent = "WAVE " + (S.w+1);
+    $("ppWaveName").textContent = w.meta.name.toUpperCase();
+    $("ppWaveBlurb").textContent = w.meta.blurb;
+    $("ppWaveOvl").classList.add("on");
+    SFX.play("wave");
+    AR.formation(Math.max(10, w.cases.length * 2));
+    return new Promise(function(r){ setTimeout(function(){ $("ppWaveOvl").classList.remove("on"); r(); }, REDUCED ? 900 : 2200); });
+  }
+  function nextCase(){
+    var c = cur();
+    S.phase = "incoming"; S.choice = null; S.markers = []; S.showOv = true;
+    $("ppAsk").hidden = false; $("ppResult").hidden = true;
+    $("ppCaseHead").textContent = "Case " + (S.i+1) + " of " + waves[S.w].cases.length + " in this wave. Inspect the radiograph, then classify it.";
+    V.hideReveal(); V.clear(); setChoiceUI(); hud();
+    Static.show('<span class="pp-blink">INCOMING TRANSMISSION</span><small>Case ' + (S.i+1) + ' · Wave ' + (S.w+1) + '</small>');
+    return Promise.all([AR.incoming(), V.loadCase(c)]).then(function(){
+      Static.hide(); V.size(); V.reset();
+      S.phase = "inspect"; S.t0 = performance.now(); S.elapsed = 0;
+      timerOn = S.mode === "patrol";
+      $("ppTimer").classList.toggle("on", timerOn);
+      setChoiceUI(); hud();
+      say("New case received. Inspect the chest X-ray and classify it.");
+    });
+  }
+  function startGame(mode){
+    SFX.ensure();
+    S.mode = mode; S.review = false; S.w = 0; S.i = 0; S.score = 0; S.streak = 0; S.bestStreak = 0; S.results = [];
+    $("ppTitle").classList.remove("on"); $("ppEnd").classList.remove("on");
+    badge(); hud();
+    showWave().then(nextCase);
+  }
+  function speedBonus(){ return Math.max(0, Math.round(50*(1 - S.elapsed/SPEED_WINDOW))); }
+
+  function submit(){
+    if (S.phase !== "inspect" || $("ppSubmit").disabled) return;
+    var c = cur(), saidPtx = S.choice === "ptx", correct = saidPtx === c.ptx;
+    timerOn = false;
+    S.markers.forEach(function(m){ m.hit = c.ptx ? V.isHit(m.x, m.y) : false; });
+    var hits = S.markers.filter(function(m){ return m.hit; }).length;
+    var locHit = c.ptx && saidPtx && S.markers.length > 0 && hits === S.markers.length;
+    var pts = { cls:0, loc:0, streak:0, speed:0 };
+    if (!S.review){
+      if (correct){
+        S.streak++; S.bestStreak = Math.max(S.bestStreak, S.streak);
+        pts.cls = 100; pts.streak = Math.min(50, 10*(S.streak - 1));
+        if (S.mode === "patrol") pts.speed = speedBonus();
+        if (locHit) pts.loc = 50;
+      } else S.streak = 0;
+      var total = pts.cls + pts.loc + pts.streak + pts.speed;
+      S.score += total;
+      S.results.push({ id:c.id, wave:S.w, correct:correct, locHit:locHit, pts:total, said:S.choice });
+      if (S.mode === "patrol" && S.score > S.hi){ S.hi = S.score; save("hi", S.hi); }
+    }
+    S.phase = "reveal";
+    SFX.play("submit");
+    V.reveal(); setChoiceUI(); renderResult(c, correct, locHit, hits, pts); hud(); badge();
+    $("ppTimer").classList.remove("on");
+    var tot = pts.cls + pts.loc + pts.streak + pts.speed;
+    AR.resolve(correct).then(function(){ if (correct && tot) AR.floatText("+" + tot); });
+  }
+  function renderResult(c, correct, locHit, hits, pts){
+    $("ppAsk").hidden = true; $("ppResult").hidden = false;
+    var v = $("ppVerdict");
+    v.className = "pp-verdict " + (correct ? "good" : "bad");
+    v.textContent = correct ? "TARGET DESTROYED!" : "TARGET ESCAPED";
+    $("ppTruth").innerHTML = "Answer: <b>" + (c.ptx ? "Pneumothorax" : "No pneumothorax") + "</b> &mdash; " + c.title +
+      (correct ? "" : "<br><span style='color:var(--dim);font-size:13px'>You chose " + (S.choice === "ptx" ? "pneumothorax" : "no pneumothorax") + ".</span>");
+    var lm = $("ppLocMsg");
+    if (S.choice === "ptx" && c.ptx){
+      lm.hidden = false;
+      lm.innerHTML = locHit ? "&#9673; Localisation: " + (S.markers.length === 1 ? "marker" : "all " + S.markers.length + " markers") + " on target."
+                            : "&#9675; Localisation: " + hits + " of " + S.markers.length + " markers on target. Compare your marks with the highlighted area.";
+    } else if (S.choice === "ptx" && !c.ptx){
+      lm.hidden = false; lm.textContent = "There is no pneumothorax here, so the markers had nothing to find.";
+    } else lm.hidden = true;
+    var rows = "";
+    if (S.review){
+      rows = "<tr><td class='miss'>REVISIT MODE</td><td class='miss'>NO POINTS</td></tr>";
+    } else {
+      function row(label, val, show){ return "<tr><td>" + label + "</td><td class='" + (val ? "" : "miss") + "'>" + (val ? "+" + val : show) + "</td></tr>"; }
+      rows += row("CLASSIFICATION", pts.cls, "0");
+      rows += row("LOCALISATION BONUS", pts.loc, c.ptx && correct ? "MISSED" : "N/A");
+      rows += row("STREAK BONUS", pts.streak, "0");
+      if (S.mode === "patrol") rows += row("SPEED BONUS", pts.speed, "0");
+      rows += "<tr class='tot'><td>TOTAL</td><td>+" + (pts.cls + pts.loc + pts.streak + pts.speed) + "</td></tr>";
+    }
+    $("ppPts").innerHTML = rows;
+    $("ppExplain").innerHTML = "<p>" + c.summary + "</p><ul>" + c.findings.map(function(f){ return "<li>" + f + "</li>"; }).join("") + "</ul>";
+    $("ppOvBtn").hidden = !c.ptx;
+    $("ppOvBtn").setAttribute("aria-pressed", S.showOv);
+    var last = !S.review && S.i === waves[S.w].cases.length - 1 && S.w === waves.length - 1;
+    $("ppNext").innerHTML = S.review ? "BACK TO DEBRIEF" : last ? "FINISH PATROL &#9654;" : "NEXT CASE &#9654;";
+    say((correct ? "Correct. " : "Incorrect. ") + "The answer is " + (c.ptx ? "pneumothorax: " : "no pneumothorax: ") + c.title + ".");
+    $("ppNext").focus({ preventScroll:true });
+  }
+  function next(){
+    if (S.phase !== "reveal") return;
+    if (S.review){ S.review = false; showEnd(); return; }
+    S.phase = "between";
+    var endOfWave = S.i === waves[S.w].cases.length - 1;
+    if (!endOfWave){ S.i++; nextCase(); return; }
+    var wasOpening = S.w === 0;
+    AR.waveClear().then(function(){
+      if (wasOpening){
+        var op = S.results.filter(function(r){ return r.wave === 0; });
+        if (op.length === waves[0].cases.length && op.every(function(r){ return r.correct; })){
+          S.unlocked = true; save("unlocked", true); badge(); toast();
+        }
+      }
+      if (S.w < waves.length - 1){ S.w++; S.i = 0; return showWave().then(nextCase); }
+      showEnd();
+    });
+  }
+  function showEnd(){
+    S.phase = "end"; timerOn = false; AR.idle(); AR.setMsg("PATROL COMPLETE", "#ffe45c");
+    V.clear(); V.hideReveal();
+    Static.show("PATROL COMPLETE<small>See your debrief</small>");
+    $("ppAsk").hidden = false; $("ppResult").hidden = true; setChoiceUI(); hud();
+    var n = S.results.length, ok = S.results.filter(function(r){ return r.correct; }).length;
+    var posCorrect = S.results.filter(function(r){ var c = byId(r.id); return c.ptx && r.correct; });
+    var loc = posCorrect.filter(function(r){ return r.locHit; }).length;
+    function stat(l, v){ return "<div><span>" + l + "</span><b>" + v + "</b></div>"; }
+    $("ppStats").innerHTML = stat("SCORE", pad(S.score, 6)) + stat("ACCURACY", (n ? Math.round(100*ok/n) : 0) + "%") +
+      stat("BEST STREAK", "x" + S.bestStreak) + stat("ON TARGET", loc + "/" + posCorrect.length) +
+      (S.mode === "patrol" ? stat("HI-SCORE", pad(S.hi, 6)) : stat("MODE", "PRACTICE"));
+    var missed = S.results.filter(function(r){ return !r.correct; });
+    var html = "";
+    if (!missed.length) html = "<div class='pp-perfect'>EVERY CASE CLASSIFIED CORRECTLY.<br>NO LUNG LEFT BEHIND!</div>";
+    else {
+      html = "<div class='pp-missed'><h3>MISSED CASES &middot; REVISIT TO LEARN</h3>" + missed.map(function(r){
+        var c = byId(r.id);
+        return "<div class='row'><img src='" + c.thumb + "' alt=''><div class='t'>" + c.title +
+               "<small>Wave " + (r.wave+1) + " &middot; you said " + (r.said === "ptx" ? "pneumothorax" : "no pneumothorax") + "</small></div>" +
+               "<button class='pp-tool' data-rev='" + c.id + "'>REVISIT</button></div>";
+      }).join("") + "</div>";
+    }
+    $("ppMissed").innerHTML = html;
+    $("ppEnd").classList.add("on");
+    SFX.play("wave");
+  }
+  function byId(id){ for (var i=0;i<CASES.length;i++) if (CASES[i].id === id) return CASES[i]; }
+  function revisit(id){
+    var c = byId(id);
+    $("ppEnd").classList.remove("on");
+    S.review = true; S.reviewCase = c; S.choice = null; S.markers = []; S.showOv = true;
+    $("ppAsk").hidden = false; $("ppResult").hidden = true;
+    $("ppCaseHead").textContent = "Revisit: " + "no points, no timer. Take your time.";
+    $("ppTimer").classList.remove("on"); timerOn = false;
+    V.hideReveal(); hud();
+    V.loadCase(c).then(function(){ Static.hide(); V.size(); V.reset(); S.phase = "inspect"; AR.setMsg("REVISIT · PAUSED", "#36f3ff"); setChoiceUI(); });
+  }
+  function toMenu(){
+    S.phase = "title"; S.review = false; timerOn = false;
+    ["ppEnd","ppWaveOvl"].forEach(function(id){ $(id).classList.remove("on"); });
+    $("ppTitle").classList.add("on");
+    $("ppTimer").classList.remove("on");
+    AR.idle(); AR.formation(16); V.clear(); V.hideReveal();
+    Static.show("STANDING BY<small>Start a patrol to receive cases</small>");
+    S.choice = null; S.markers = []; $("ppAsk").hidden = false; $("ppResult").hidden = true;
+    setChoiceUI(); hud();
+  }
+  function tick(){
+    if (!timerOn || S.phase !== "inspect") return;
+    S.elapsed = (performance.now() - S.t0)/1000;
+    var b = speedBonus();
+    $("ppTimerBar").style.width = (100*b/50) + "%";
+    $("ppTimerTxt").textContent = b ? "SPEED BONUS +" + b : "NO SPEED BONUS";
+  }
+
+  /* achievement toast */
+  var toastT = 0;
+  function toast(){
+    var w = $("ppAch");
+    clearTimeout(toastT);
+    toastT = setTimeout(function(){ w.classList.remove("on", "is-playing"); }, 9000);
+    w.classList.add("on"); w.classList.remove("is-playing"); void w.offsetWidth; w.classList.add("is-playing");
+    setTimeout(function(){ SFX.play("ach"); }, REDUCED ? 0 : 600);
+    say("Achievement unlocked: No Lung Left Behind.");
+  }
+
+  return { startGame:startGame, choose:choose, submit:submit, next:next, markersChanged:markersChanged, say:say,
+           revisit:revisit, toMenu:toMenu, tick:tick, hud:hud, badge:badge, toast:toast, setChoiceUI:setChoiceUI };
+})();
+
+/* ---------- fullscreen ---------- */
+function toggleFull(){
+  var v = $("ppViewer");
+  var fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fsEl){ (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+  if (v.classList.contains("pp-pseudo-fs")){ v.classList.remove("pp-pseudo-fs"); setTimeout(V.size, 30); return; }
+  var req = v.requestFullscreen || v.webkitRequestFullscreen;
+  var p = null;
+  try{ p = req && req.call(v); }catch(e){ p = null; }
+  if (p && p.catch) p.catch(function(){ v.classList.add("pp-pseudo-fs"); setTimeout(V.size, 30); });
+  else if (!req) { v.classList.add("pp-pseudo-fs"); setTimeout(V.size, 30); }
+}
+document.addEventListener("fullscreenchange", function(){ setTimeout(V.size, 30); });
+document.addEventListener("webkitfullscreenchange", function(){ setTimeout(V.size, 30); });
+
+/* ---------- wiring ---------- */
+(function(){
+  var n = waves.length ? waves[0].cases.length : 0, words = ["", "one", "two", "three", "four", "five", "six"];
+  var w = words[n] || String(n);
+  $("ppBadgeReq").textContent = n === 1 ? "Correctly classify the opening case." : "Correctly classify all " + w + " opening cases.";
+  $("ppAchSub").innerHTML = "Pneumo Patrol &middot; " + (n === 1 ? "opening case" : "all " + w + " opening cases") + " correct";
+  $("ppPips").innerHTML = new Array(n + 1).join("<i></i>");
+})();
+$("ppLogoMark").src = ASSETS.logo_mark || "";
+$("ppLogoFull").src = ASSETS.logo_full || "";
+$("ppAchLogo").src = ASSETS.logo_mark || "";
+$("ppBadge").innerHTML = pixelSVG(SPR.badge, "No Lung Left Behind badge: a spaceship above a pair of lungs");
+$("ppAchMarker").innerHTML = pixelSVG(SPR.badge);
+$("ppTitleSprites").innerHTML = [SPR.squidA, SPR.crabA, SPR.mother, SPR.crabB, SPR.squidB].map(function(m){ return pixelSVG(m); }).join("");
+$("ppFoot").innerHTML = "Images: " + SOURCE.citation + ' <a href="' + SOURCE.url + '" target="_blank" rel="noopener">' + SOURCE.url + "</a>, " +
+  '<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. ' +
+  "Changes: segmentation masks rendered as coloured answer overlays and scoring regions. Teaching game, not for clinical use.";
+
+function setSound(on){
+  SFX.on = on; save("sound", on);
+  var b = $("ppSound"); b.setAttribute("aria-pressed", on); b.textContent = on ? "SND ON" : "SND OFF";
+  if (on) SFX.play("select");
+}
+setSound(SFX.on);
+$("ppSound").onclick = function(){ setSound(!SFX.on); };
+$("ppMenu").onclick = Game.toMenu;
+$("ppStart").onclick = function(){ Game.startGame("patrol"); };
+$("ppPractice").onclick = function(){ Game.startGame("practice"); };
+$("ppAgain").onclick = function(){ Game.startGame(S.mode); };
+$("ppToMenu").onclick = Game.toMenu;
+$("ppNo").onclick = function(){ Game.choose("no"); };
+$("ppYes").onclick = function(){ Game.choose("ptx"); };
+$("ppSubmit").onclick = Game.submit;
+$("ppNext").onclick = Game.next;
+$("ppZoomIn").onclick = function(){ var c = V.center(); V.zoomAt(1.25, c.x, c.y); };
+$("ppZoomOut").onclick = function(){ var c = V.center(); V.zoomAt(0.8, c.x, c.y); };
+$("ppFit").onclick = V.reset;
+$("ppFull").onclick = toggleFull;
+$("ppInvert").onclick = function(){ S.invert = !S.invert; this.setAttribute("aria-pressed", S.invert); V.draw(); };
+$("ppOvBtn").onclick = function(){ S.showOv = !S.showOv; this.setAttribute("aria-pressed", S.showOv); V.draw(); };
+$("ppMissed").addEventListener("click", function(e){ var b = e.target.closest("[data-rev]"); if (b) Game.revisit(b.getAttribute("data-rev")); });
+$("ppAchReplay").onclick = Game.toast;
+$("ppAchClose").onclick = function(){ $("ppAch").classList.remove("on", "is-playing"); };
+
+document.addEventListener("keydown", function(e){
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  var t = e.target; if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+  var k = e.key;
+  if (S.phase === "title" && k === "Enter" && $("ppTitle").classList.contains("on") && !(t && t.tagName === "BUTTON")){ Game.startGame("patrol"); e.preventDefault(); return; }
+  if (k === "n" || k === "N") Game.choose("no");
+  else if (k === "p" || k === "P") Game.choose("ptx");
+  else if (k === "Enter" && !(t && t.tagName === "BUTTON")){ if (S.phase === "inspect") Game.submit(); else if (S.phase === "reveal") Game.next(); else return; }
+  else if (k === "+" || k === "="){ var c = V.center(); V.zoomAt(1.25, c.x, c.y); }
+  else if (k === "-" || k === "_"){ var c2 = V.center(); V.zoomAt(0.8, c2.x, c2.y); }
+  else if (k === "0") V.reset();
+  else if (k === "f" || k === "F") toggleFull();
+  else if (k === "i" || k === "I") $("ppInvert").click();
+  else if ((k === "o" || k === "O") && S.phase === "reveal") $("ppOvBtn").click();
+  else if (k === "s" || k === "S") setSound(!SFX.on);
+  else return;
+  e.preventDefault();
+});
+
+/* ---------- main loop ---------- */
+function resizeAll(){ stars.size(); AR.size(); V.size(); }
+if (window.ResizeObserver){ new ResizeObserver(function(){ resizeAll(); }).observe(root); new ResizeObserver(function(){ V.size(); }).observe($("ppStage")); }
+window.addEventListener("resize", resizeAll);
+resizeAll();
+AR.formation(16);
+Game.hud(); Game.badge(); Game.setChoiceUI();
+
+var last = performance.now(), noiseT = 0;
+function loop(now){
+  var dt = Math.min(0.05, (now - last)/1000); last = now;
+  var speed = REDUCED ? 0 : (S.phase === "inspect" || S.phase === "reveal" ? 6 : 28);
+  stars.draw(dt, speed);
+  AR.update(dt); AR.draw();
+  noiseT += dt; if (noiseT > 0.06){ noiseT = 0; Static.draw(); }
+  Game.tick();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ V.draw(); });
+})();
+</script>
+</body>
+</html>
